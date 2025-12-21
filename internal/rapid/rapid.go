@@ -38,8 +38,27 @@ func NewService(rapidApiKey string, log *slog.Logger) *Service {
 }
 
 func (s *Service) ParseUrl(reelUrl []string) []*ResultRow {
+	const batchSize = 50
 	results := make([]*ResultRow, 0, len(reelUrl))
-	for _, url := range reelUrl {
+
+	for i := 0; i < len(reelUrl); i += batchSize {
+		end := i + batchSize
+		if end > len(reelUrl) {
+			end = len(reelUrl)
+		}
+
+		batch := reelUrl[i:end]
+		batchResults := s.processBatch(batch)
+		results = append(results, batchResults...)
+	}
+
+	return results
+}
+
+func (s *Service) processBatch(urls []string) []*ResultRow {
+	results := make([]*ResultRow, 0, len(urls))
+
+	for _, url := range urls {
 		data, err := s.fetchInstagramDataSafe(url)
 		if err != nil {
 			s.logger.Error("Error fetching instagram data", err)
