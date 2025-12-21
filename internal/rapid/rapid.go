@@ -59,6 +59,7 @@ func (s *Service) processBatch(urls []string) []*ResultRow {
 	results := make([]*ResultRow, 0, len(urls))
 
 	for _, url := range urls {
+		time.Sleep(500 * time.Millisecond)
 		data, err := s.fetchInstagramDataSafe(url)
 		if err != nil {
 			s.logger.Error("Error fetching instagram data", err)
