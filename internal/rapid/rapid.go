@@ -1,0 +1,173 @@
+package rapid
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"log/slog"
+	"net/http"
+	"time"
+)
+
+type Service struct {
+	rapidAPIKey string
+	logger      *slog.Logger
+	httpClient  *http.Client
+}
+
+type ResultRow struct {
+	URL         string
+	Views       int64
+	Likes       int64
+	Comments    int64
+	Shares      int64
+	ER          string
+	Virality    string
+	ParsingDate string
+	PublishDate string
+}
+
+func NewService(rapidApiKey string, log *slog.Logger) *Service {
+	return &Service{
+		logger:      log,
+		rapidAPIKey: rapidApiKey,
+		httpClient: &http.Client{
+			Timeout: 10 * time.Second,
+		}}
+}
+
+func (s *Service) ParseUrl(reelUrl []string) []*ResultRow {
+	results := make([]*ResultRow, 0, len(reelUrl))
+	for _, url := range reelUrl {
+		data, err := s.fetchInstagramDataSafe(url)
+		if err != nil {
+			s.logger.Error("Error fetching instagram data", err)
+			continue
+		}
+
+		resultRow, err := processInstagramResponse(data, url)
+		if err != nil {
+			s.logger.Error("Error processing instagram response", err)
+			continue
+		}
+
+		results = append(results, resultRow)
+	}
+
+	return results
+}
+
+func (s *Service) fetchInstagramDataSafe(reelURL string) (*InstagramAPIResponse, error) {
+	if s.rapidAPIKey == "" {
+		return nil, fmt.Errorf("API ключ не настроен. Установите RAPIDAPI_KEY")
+	}
+
+	// Создаем базовый URL
+	const baseURL = "https://real-time-instagram-scraper-api1.p.rapidapi.com/v1/media_info"
+
+	// Создаем запрос с Query параметрами
+	req, err := http.NewRequest("GET", baseURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка создания запроса: %v", err)
+	}
+
+	// Добавляем query параметры
+	q := req.URL.Query()
+	q.Add("code_or_id_or_url", reelURL)
+	req.URL.RawQuery = q.Encode()
+
+	log.Printf("Запрос к API: %s\n", req.URL.String())
+
+	// Устанавливаем заголовки
+	req.Header.Set("x-rapidapi-key", s.rapidAPIKey)
+	req.Header.Set("x-rapidapi-host", "real-time-instagram-scraper-api1.p.rapidapi.com")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка запроса к API: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Обрабатываем ответ
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API вернул код ошибки: %d, тело: %s", resp.StatusCode, string(body))
+	}
+
+	var data InstagramAPIResponse
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, fmt.Errorf("ошибка парсинга JSON: %v", err)
+	}
+
+	return &data, nil
+}
+
+func processInstagramResponse(apiResponse *InstagramAPIResponse, url string) (*ResultRow, error) {
+	//Проверяем наличие items
+	if len(apiResponse.Data.Items) == 0 {
+		return nil, fmt.Errorf("no items found in API response")
+	}
+
+	item := apiResponse.Data.Items[0]
+
+	// Получаем значения с проверкой на нулевые значения
+	likes := item.LikeCount
+	comments := item.CommentCount
+	shares := item.ReshareCount
+	views := item.IgPlayCount
+
+	// Форматируем дату публикации
+	publishDate := ""
+	if item.TakenAt > 0 {
+		// Конвертируем Unix timestamp в time.Time
+		pubTime := time.Unix(item.TakenAt, 0)
+
+		// Устанавливаем временную зону Москвы
+		moscow, err := time.LoadLocation("Europe/Moscow")
+		if err != nil {
+			log.Printf("Warning: could not load Moscow timezone, using local: %v", err)
+			moscow = time.Local
+		}
+
+		// Форматируем дату в нужный формат
+		pubTimeInMoscow := pubTime.In(moscow)
+		publishDate = pubTimeInMoscow.Format("02.01.2006 15:04")
+	}
+
+	if shares == nil {
+		var nilVal int64 = 0
+		shares = &nilVal
+	}
+
+	// Создаем строку результата
+	result := &ResultRow{
+		URL:         url,
+		Views:       views,
+		Likes:       likes,
+		Comments:    comments,
+		Shares:      *shares,
+		ER:          getER(likes, *shares, comments, views),
+		Virality:    getVirality(*shares, views),
+		ParsingDate: time.Now().Format("02.01.2006 15:04"),
+		PublishDate: publishDate,
+	}
+
+	return result, nil
+}
+
+func getER(likes, shares, comments, views int64) string {
+	if likes+shares+comments <= 0 || views <= 0 {
+		return "0"
+	}
+
+	return fmt.Sprintf("%.2f%%", float64(likes+shares+comments)/float64(views)*100)
+}
+
+func getVirality(shares, views int64) string {
+	if shares <= 0 || views <= 0 {
+		return "0"
+	}
+	return fmt.Sprintf("%.2f%%", float64(shares)/float64(views)*100)
+}
