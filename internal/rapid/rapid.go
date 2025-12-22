@@ -148,16 +148,8 @@ func (s *Service) fetchInstagramDataSafe(reelURL string) (*InstagramAPIResponse,
 	}
 
 	var (
-		data      InstagramAPIResponse
-		dataError InstagramAPIErrorResponse
+		data InstagramAPIResponse
 	)
-	if err := json.NewDecoder(resp.Body).Decode(&dataError); err != nil {
-		return nil, fmt.Errorf("ошибка парсинга JSON: %v, url: %s", err, reelURL)
-	}
-	if dataError.Status == "error" {
-		return nil, fmt.Errorf(dataError.Message)
-	}
-
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		return nil, fmt.Errorf("ошибка парсинга JSON: %v, url: %s", err, reelURL)
 	}
