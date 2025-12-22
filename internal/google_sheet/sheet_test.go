@@ -2,6 +2,7 @@ package google_sheet
 
 import (
 	logger2 "inst_parser/internal/logger"
+	"inst_parser/internal/models"
 	"testing"
 
 	"inst_parser/internal/config"
@@ -12,7 +13,7 @@ func TestService_InsertData(t *testing.T) {
 	type args struct {
 		spreadsheetID string
 		sheetName     string
-		data          []*rapid.ResultRow
+		data          []*models.ResultRow
 	}
 
 	cfg := config.MustLoad()

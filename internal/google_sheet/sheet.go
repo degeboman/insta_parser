@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"inst_parser/internal/models"
 	"log"
 	"os"
 
 	"inst_parser/internal/config"
-	"inst_parser/internal/rapid"
 
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
@@ -33,7 +33,7 @@ type Credentials struct {
 	UniverseDomain          string `json:"universe_domain"`
 }
 type Service struct {
-	sheetsService *sheets.Service
+	SheetsService *sheets.Service
 }
 
 func NewService(cfg config.GoogleDriveCredentials) *Service {
@@ -47,11 +47,11 @@ func NewService(cfg config.GoogleDriveCredentials) *Service {
 	}
 
 	return &Service{
-		sheetsService: srv,
+		SheetsService: srv,
 	}
 }
 
-func (s *Service) InsertData(spreadsheetID, sheetName string, data []*rapid.ResultRow) error {
+func (s *Service) InsertData(spreadsheetID, sheetName string, data []*models.ResultRow) error {
 	if data == nil {
 		return nil
 	}
@@ -82,7 +82,7 @@ func (s *Service) InsertData(spreadsheetID, sheetName string, data []*rapid.Resu
 
 	rangeData := fmt.Sprintf("%s!A:I", sheetName)
 
-	_, err := s.sheetsService.Spreadsheets.Values.Append(
+	_, err := s.SheetsService.Spreadsheets.Values.Append(
 		spreadsheetID,
 		rangeData,
 		valueRange,

@@ -2,10 +2,9 @@ package handler
 
 import (
 	"encoding/json"
+	"inst_parser/internal/models"
 	"log/slog"
 	"net/http"
-
-	"inst_parser/internal/rapid"
 )
 
 type Request struct {
@@ -20,11 +19,11 @@ type Response struct {
 }
 
 type Parser interface {
-	ParseUrl(reelUrl []string) []*rapid.ResultRow
+	ParseUrl(spreadsheetID string, reelUrl []string) []*models.ResultRow
 }
 
 type DataInserter interface {
-	InsertData(spreadsheetID, sheetName string, data []*rapid.ResultRow) error
+	InsertData(spreadsheetID, sheetName string, data []*models.ResultRow) error
 }
 
 type ParsingHandler struct {
@@ -83,7 +82,7 @@ func (h *ParsingHandler) Parsing(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go func() {
-		result := h.parser.ParseUrl(req.URLs)
+		result := h.parser.ParseUrl(req.SpreadsheetID, req.URLs)
 		if result == nil || len(result) == 0 {
 			h.logger.Warn("Parsing URLs returned an empty result")
 			return

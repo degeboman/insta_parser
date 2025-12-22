@@ -1,14 +1,14 @@
 package main
 
 import (
-	"inst_parser/internal/google_sheet"
-	"inst_parser/internal/rapid"
 	"log"
 	"net/http"
 
 	"inst_parser/internal/config"
+	"inst_parser/internal/google_sheet"
 	"inst_parser/internal/handler"
 	"inst_parser/internal/logger"
+	"inst_parser/internal/rapid"
 )
 
 func main() {
@@ -17,8 +17,8 @@ func main() {
 
 	l.Info("Starting server")
 
-	rapidSrv := rapid.NewService(cfg.Rapid.ApiKey, l)
 	sheetSrv := google_sheet.NewService(cfg.GoogleDriveCredentials)
+	rapidSrv := rapid.NewService(cfg.Rapid.ApiKey, l, sheetSrv)
 
 	parsingHandler := handler.NewParsingHandler(l, rapidSrv, sheetSrv)
 

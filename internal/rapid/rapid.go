@@ -7,39 +7,61 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
+
+	"inst_parser/internal/google_sheet"
+	"inst_parser/internal/models"
 )
 
 type Service struct {
-	rapidAPIKey string
-	logger      *slog.Logger
-	httpClient  *http.Client
+	rapidAPIKey   string
+	logger        *slog.Logger
+	httpClient    *http.Client
+	sheetsService *google_sheet.Service
+	processingMu  sync.Mutex
 }
 
-type ResultRow struct {
-	URL         string
-	Views       int64
-	Likes       int64
-	Comments    int64
-	Shares      int64
-	ER          string
-	Virality    string
-	ParsingDate string
-	PublishDate string
-}
-
-func NewService(rapidApiKey string, log *slog.Logger) *Service {
+func NewService(rapidApiKey string, log *slog.Logger, sheetsService *google_sheet.Service) *Service {
 	return &Service{
-		logger:      log,
-		rapidAPIKey: rapidApiKey,
+		logger:        log,
+		rapidAPIKey:   rapidApiKey,
+		sheetsService: sheetsService,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
-		}}
+		},
+	}
 }
 
-func (s *Service) ParseUrl(reelUrl []string) []*ResultRow {
+func (s *Service) ParseUrl(spreadsheetID string, reelUrl []string) []*models.ResultRow {
+	s.processingMu.Lock()
+	defer s.processingMu.Unlock()
+
 	const batchSize = 50
-	results := make([]*ResultRow, 0, len(reelUrl))
+	results := make([]*models.ResultRow, 0, len(reelUrl))
+
+	tracker, err := google_sheet.NewProgressTracker(s.sheetsService.SheetsService, spreadsheetID)
+	if err != nil {
+		s.logger.Error("Error creating progress tracker", err)
+	}
+
+	var progressRow int
+	if tracker != nil {
+		progressRow, err = tracker.StartParsing(len(reelUrl))
+		if err != nil {
+			s.logger.Error("Error starting progress tracking", err)
+		}
+	}
+
+	processedCount := 0
+
+	defer func() {
+		if tracker != nil {
+			if err := tracker.FinishParsing(progressRow); err != nil {
+				s.logger.Error("Error finishing progress tracking", err)
+			}
+		}
+	}()
 
 	for i := 0; i < len(reelUrl); i += batchSize {
 		end := i + batchSize
@@ -50,13 +72,21 @@ func (s *Service) ParseUrl(reelUrl []string) []*ResultRow {
 		batch := reelUrl[i:end]
 		batchResults := s.processBatch(batch)
 		results = append(results, batchResults...)
+
+		processedCount += len(batch)
+
+		if tracker != nil {
+			if err := tracker.UpdateProgress(progressRow, processedCount); err != nil {
+				s.logger.Error("Error updating progress", err)
+			}
+		}
 	}
 
 	return results
 }
 
-func (s *Service) processBatch(urls []string) []*ResultRow {
-	results := make([]*ResultRow, 0, len(urls))
+func (s *Service) processBatch(urls []string) []*models.ResultRow {
+	results := make([]*models.ResultRow, 0, len(urls))
 
 	for _, url := range urls {
 		time.Sleep(500 * time.Millisecond)
@@ -124,7 +154,7 @@ func (s *Service) fetchInstagramDataSafe(reelURL string) (*InstagramAPIResponse,
 	return &data, nil
 }
 
-func processInstagramResponse(apiResponse *InstagramAPIResponse, url string) (*ResultRow, error) {
+func processInstagramResponse(apiResponse *InstagramAPIResponse, url string) (*models.ResultRow, error) {
 	//Проверяем наличие items
 	if len(apiResponse.Data.Items) == 0 {
 		return nil, fmt.Errorf("no items found in API response")
@@ -164,7 +194,7 @@ func processInstagramResponse(apiResponse *InstagramAPIResponse, url string) (*R
 	}
 
 	// Создаем строку результата
-	result := &ResultRow{
+	result := &models.ResultRow{
 		URL:         url,
 		Views:       views,
 		Likes:       likes,
