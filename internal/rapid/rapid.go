@@ -89,10 +89,11 @@ func (s *Service) processBatch(urls []string) []*models.ResultRow {
 	results := make([]*models.ResultRow, 0, len(urls))
 
 	for _, url := range urls {
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(550 * time.Millisecond)
 		data, err := s.fetchInstagramDataSafe(url)
 		if err != nil {
-			s.logger.Error("Error fetching instagram data", err)
+			s.logger.Warn("Error fetching instagram data", err, slog.String("url", url))
+			results = append(results, models.EmptyResultRow(url))
 			continue
 		}
 
@@ -146,9 +147,19 @@ func (s *Service) fetchInstagramDataSafe(reelURL string) (*InstagramAPIResponse,
 		return nil, fmt.Errorf("API вернул код ошибки: %d, тело: %s", resp.StatusCode, string(body))
 	}
 
-	var data InstagramAPIResponse
+	var (
+		data      InstagramAPIResponse
+		dataError InstagramAPIErrorResponse
+	)
+	if err := json.NewDecoder(resp.Body).Decode(&dataError); err != nil {
+		return nil, fmt.Errorf("ошибка парсинга JSON: %v, url: %s", err, reelURL)
+	}
+	if dataError.Status == "error" {
+		return nil, fmt.Errorf(dataError.Message)
+	}
+
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, fmt.Errorf("ошибка парсинга JSON: %v", err)
+		return nil, fmt.Errorf("ошибка парсинга JSON: %v, url: %s", err, reelURL)
 	}
 
 	return &data, nil

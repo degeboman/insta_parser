@@ -2,6 +2,7 @@ package google_sheet
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"google.golang.org/api/sheets/v4"
@@ -96,7 +97,12 @@ func (pt *ProgressTracker) writeHeaders() error {
 }
 
 func (pt *ProgressTracker) StartParsing(totalURLs int) (int, error) {
-	startTime := time.Now().Format(time.DateTime)
+	moscow, err := time.LoadLocation("Europe/Moscow")
+	if err != nil {
+		log.Printf("Warning: could not load Moscow timezone, using local: %v", err)
+		moscow = time.Local
+	}
+	startTime := time.Now().In(moscow).Format(time.DateTime)
 
 	row := []interface{}{startTime, totalURLs, 0, ""}
 	valueRange := &sheets.ValueRange{
@@ -105,7 +111,7 @@ func (pt *ProgressTracker) StartParsing(totalURLs int) (int, error) {
 
 	// Добавляем новую строку после заголовка
 	rangeStr := fmt.Sprintf("%s!A2:D2", ProgressSheetName)
-	_, err := pt.sheetsService.Spreadsheets.Values.Update(
+	_, err = pt.sheetsService.Spreadsheets.Values.Update(
 		pt.spreadsheetID,
 		rangeStr,
 		valueRange,
@@ -134,14 +140,19 @@ func (pt *ProgressTracker) UpdateProgress(row, progress int) error {
 }
 
 func (pt *ProgressTracker) FinishParsing(row int) error {
-	endTime := time.Now().Format(time.DateTime)
+	moscow, err := time.LoadLocation("Europe/Moscow")
+	if err != nil {
+		log.Printf("Warning: could not load Moscow timezone, using local: %v", err)
+		moscow = time.Local
+	}
+	endTime := time.Now().In(moscow).Format(time.DateTime)
 
 	valueRange := &sheets.ValueRange{
 		Values: [][]interface{}{{endTime}},
 	}
 
 	rangeStr := fmt.Sprintf("%s!D%d", ProgressSheetName, row)
-	_, err := pt.sheetsService.Spreadsheets.Values.Update(
+	_, err = pt.sheetsService.Spreadsheets.Values.Update(
 		pt.spreadsheetID,
 		rangeStr,
 		valueRange,

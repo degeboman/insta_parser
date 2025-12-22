@@ -78,3 +78,8 @@ type InstagramAPIResponse struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
 }
+
+type InstagramAPIErrorResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
