@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"inst_parser/internal/models"
 	"log"
 	"os"
 
 	"inst_parser/internal/config"
+	"inst_parser/internal/models"
 
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"

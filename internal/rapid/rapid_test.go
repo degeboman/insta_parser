@@ -85,7 +85,7 @@ func TestService_ParseUrl(t *testing.T) {
 				rapidAPIKey: tt.fields.rapidAPIKey,
 				httpClient:  tt.fields.httpClient,
 			}
-			got := s.ParseUrl([]string{tt.args.reelURL})
+			got := s.ParseUrl("1J-_Ka6O8EGWjwbsHxOxdve-H2CFPUXTIeV7phAOlK-8", []string{tt.args.reelURL})
 
 			fmt.Println(got)
 		})

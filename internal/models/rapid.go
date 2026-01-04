@@ -1,4 +1,4 @@
-package rapid
+package models
 
 type (
 	InstagramItem struct {
