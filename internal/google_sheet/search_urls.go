@@ -135,20 +135,14 @@ func (s *UrlsService) GetUrls(spreadsheetID, sheetName string, positions *models
 	var urls []string
 
 	// Конвертируем 1-based индексы в 0-based для работы с массивом
-	urlColIndex := positions.URLColumnIndex - 1
+	urlColIndex := 0
 	checkboxColIndex := -1
 	if positions.CheckboxColumnIndex > 0 {
-		checkboxColIndex = positions.CheckboxColumnIndex - 1
+		checkboxColIndex = positions.CheckboxColumnIndex - positions.URLColumnIndex
 	}
 
 	// Обрабатываем каждую строку
 	for rowIndex, row := range resp.Values {
-		// Проверяем, что в строке достаточно данных
-		if urlColIndex >= len(row) {
-			s.log.Info("Предупреждение: строка %d не содержит колонку URL", slog.Int("row", rowIndex+3))
-			continue
-		}
-
 		// Получаем URL
 		urlCell := row[urlColIndex]
 		url, ok := urlCell.(string)
