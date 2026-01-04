@@ -109,7 +109,7 @@ func (s *Service) processBatch(urls []string) []*models.ResultRow {
 	return results
 }
 
-func (s *Service) fetchInstagramDataSafe(reelURL string) (*InstagramAPIResponse, error) {
+func (s *Service) fetchInstagramDataSafe(reelURL string) (*models.InstagramAPIResponse, error) {
 	if s.rapidAPIKey == "" {
 		return nil, fmt.Errorf("API ключ не настроен. Установите RAPIDAPI_KEY")
 	}
@@ -147,9 +147,7 @@ func (s *Service) fetchInstagramDataSafe(reelURL string) (*InstagramAPIResponse,
 		return nil, fmt.Errorf("API вернул код ошибки: %d, тело: %s", resp.StatusCode, string(body))
 	}
 
-	var (
-		data InstagramAPIResponse
-	)
+	var data models.InstagramAPIResponse
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		return nil, fmt.Errorf("ошибка парсинга JSON: %v, url: %s", err, reelURL)
 	}
@@ -157,7 +155,7 @@ func (s *Service) fetchInstagramDataSafe(reelURL string) (*InstagramAPIResponse,
 	return &data, nil
 }
 
-func processInstagramResponse(apiResponse *InstagramAPIResponse, url string) (*models.ResultRow, error) {
+func processInstagramResponse(apiResponse *models.InstagramAPIResponse, url string) (*models.ResultRow, error) {
 	//Проверяем наличие items
 	if len(apiResponse.Data.Items) == 0 {
 		return nil, fmt.Errorf("no items found in API response")
