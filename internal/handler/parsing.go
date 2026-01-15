@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"inst_parser/internal/constants"
 	"inst_parser/internal/models"
 )
 
@@ -106,7 +107,7 @@ func (h *ParsingHandler) Parsing(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := h.dataInserter.InsertData(req.SpreadsheetID, "Сырые данные", result); err != nil {
+		if err := h.dataInserter.InsertData(req.SpreadsheetID, constants.DataTable, result); err != nil {
 			h.logger.Error("Parsing URLs returned an error",
 				slog.String("spreadsheet_id", req.SpreadsheetID),
 				slog.String("err", err.Error()),
@@ -170,7 +171,12 @@ func (h *ParsingHandler) Parsing2(w http.ResponseWriter, r *http.Request) {
 		h.logger.Info("Parsing2 request started")
 		defer h.logger.Info("Parsing2 request finished")
 
-		urls, err := h.urlsProvider.FindUrls(req.IsSelected, []models.ParsingType{models.Instagram}, req.SheetName, req.SpreadsheetID)
+		urls, err := h.urlsProvider.FindUrls(
+			req.IsSelected,
+			[]models.ParsingType{models.Instagram},
+			req.SheetName,
+			req.SpreadsheetID,
+		)
 		if err != nil {
 			h.logger.Error("Failed to find urls",
 				slog.String("spreadsheet_id", req.SpreadsheetID),
@@ -193,7 +199,7 @@ func (h *ParsingHandler) Parsing2(w http.ResponseWriter, r *http.Request) {
 		h.logger.Info("ParseUrl finished")
 
 		h.logger.Info("InsertData started")
-		if err := h.dataInserter.InsertData(req.SpreadsheetID, "Сырые данные", result); err != nil {
+		if err := h.dataInserter.InsertData(req.SpreadsheetID, constants.DataTable, result); err != nil {
 			h.logger.Error("Parsing URLs returned an error",
 				slog.String("spreadsheet_id", req.SpreadsheetID),
 				slog.String("err", err.Error()),

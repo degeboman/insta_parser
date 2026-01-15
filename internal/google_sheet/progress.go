@@ -5,11 +5,12 @@ import (
 	"log"
 	"time"
 
+	"inst_parser/internal/constants"
+
 	"google.golang.org/api/sheets/v4"
 )
 
 const (
-	ProgressSheetName = "Прогресс парсинга"
 	ProgressHeaderRow = 1
 )
 
@@ -42,7 +43,7 @@ func (pt *ProgressTracker) ensureProgressSheet() error {
 	// Проверяем, существует ли лист прогресса
 	sheetExists := false
 	for _, sheet := range spreadsheet.Sheets {
-		if sheet.Properties.Title == ProgressSheetName {
+		if sheet.Properties.Title == constants.ProgressTable {
 			pt.sheetID = sheet.Properties.SheetId
 			sheetExists = true
 			break
@@ -54,7 +55,7 @@ func (pt *ProgressTracker) ensureProgressSheet() error {
 		req := &sheets.Request{
 			AddSheet: &sheets.AddSheetRequest{
 				Properties: &sheets.SheetProperties{
-					Title: ProgressSheetName,
+					Title: constants.ProgressTable,
 				},
 			},
 		}
@@ -86,7 +87,7 @@ func (pt *ProgressTracker) writeHeaders() error {
 		Values: [][]interface{}{headers},
 	}
 
-	rangeStr := fmt.Sprintf("%s!A%d:D%d", ProgressSheetName, ProgressHeaderRow, ProgressHeaderRow)
+	rangeStr := fmt.Sprintf("%s!A%d:D%d", constants.ProgressTable, ProgressHeaderRow, ProgressHeaderRow)
 	_, err := pt.sheetsService.Spreadsheets.Values.Update(
 		pt.spreadsheetID,
 		rangeStr,
@@ -110,7 +111,7 @@ func (pt *ProgressTracker) StartParsing(totalURLs int) (int, error) {
 	}
 
 	// Добавляем новую строку после заголовка
-	rangeStr := fmt.Sprintf("%s!A2:D2", ProgressSheetName)
+	rangeStr := fmt.Sprintf("%s!A2:D2", constants.ProgressTable)
 	_, err = pt.sheetsService.Spreadsheets.Values.Update(
 		pt.spreadsheetID,
 		rangeStr,
@@ -129,7 +130,7 @@ func (pt *ProgressTracker) UpdateProgress(row, progress int) error {
 		Values: [][]interface{}{{progress}},
 	}
 
-	rangeStr := fmt.Sprintf("%s!C%d", ProgressSheetName, row)
+	rangeStr := fmt.Sprintf("%s!C%d", constants.ProgressTable, row)
 	_, err := pt.sheetsService.Spreadsheets.Values.Update(
 		pt.spreadsheetID,
 		rangeStr,
@@ -151,7 +152,7 @@ func (pt *ProgressTracker) FinishParsing(row int) error {
 		Values: [][]interface{}{{endTime}},
 	}
 
-	rangeStr := fmt.Sprintf("%s!D%d", ProgressSheetName, row)
+	rangeStr := fmt.Sprintf("%s!D%d", constants.ProgressTable, row)
 	_, err = pt.sheetsService.Spreadsheets.Values.Update(
 		pt.spreadsheetID,
 		rangeStr,
