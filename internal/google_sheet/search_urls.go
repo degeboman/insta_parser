@@ -143,6 +143,9 @@ func (s *UrlsService) GetUrls(spreadsheetID, sheetName string, positions *models
 
 	// Обрабатываем каждую строку
 	for rowIndex, row := range resp.Values {
+		if len(row) == 0 {
+			continue
+		}
 		// Получаем URL
 		urlCell := row[urlColIndex]
 		url, ok := urlCell.(string)
