@@ -106,6 +106,7 @@ func (s *Service) processBatch(urls []string) []*models.ResultRow {
 			time.Sleep(550 * time.Millisecond)
 			resultRow = s.parseInstagram(url)
 		case models.VK:
+			time.Sleep(250 * time.Millisecond)
 			resultRow = s.parseVK(url)
 		default:
 			s.logger.Warn("Unsupported URL type", slog.String("url", url))
