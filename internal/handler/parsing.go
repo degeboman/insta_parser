@@ -10,11 +10,6 @@ import (
 )
 
 type Request struct {
-	SpreadsheetID string   `json:"spreadsheet_id"`
-	URLs          []string `json:"urls"`
-}
-
-type RequestV2 struct {
 	SpreadsheetID string `json:"spreadsheet_id"`
 	SheetName     string `json:"sheet_name"`
 	IsSelected    bool   `json:"is_selected"`
@@ -26,17 +21,17 @@ type Response struct {
 	Data    []string `json:"data"`
 }
 
-type Parser interface {
-	ParseUrl(spreadsheetID string, reelUrl []string) []*models.ResultRow
-}
-
-type DataInserter interface {
-	InsertData(spreadsheetID, sheetName string, data []*models.ResultRow) error
-}
-
-type UrlsProvider interface {
-	FindUrls(isSelected bool, parsingTypes []models.ParsingType, sheetName, spreadsheetID string) ([]string, error)
-}
+type (
+	Parser interface {
+		ParseUrl(spreadsheetID string, reelUrl []string) []*models.ResultRow
+	}
+	DataInserter interface {
+		InsertData(spreadsheetID, sheetName string, data []*models.ResultRow) error
+	}
+	UrlsProvider interface {
+		FindUrls(isSelected bool, parsingTypes []models.ParsingType, sheetName, spreadsheetID string) ([]string, error)
+	}
+)
 
 type ParsingHandler struct {
 	logger       *slog.Logger
@@ -59,73 +54,6 @@ func NewParsingHandler(
 	}
 }
 
-func (h *ParsingHandler) Parsing(w http.ResponseWriter, r *http.Request) {
-	// Разрешаем только POST метод
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Парсим JSON из тела запроса
-	var req Request
-	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(&req); err != nil {
-		resp := Response{
-			Success: false,
-			Message: "Invalid JSON format",
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(resp)
-		return
-	}
-
-	// Проверяем, что tablename передан
-	if req.SpreadsheetID == "" {
-		resp := Response{
-			Success: false,
-			Message: "spreadsheet_id is required",
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(resp)
-		return
-	}
-
-	if len(req.URLs) == 0 {
-		resp := Response{
-			Success: false,
-			Message: "Empty URLs",
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(resp)
-		return
-	}
-
-	go func() {
-		result := h.parser.ParseUrl(req.SpreadsheetID, req.URLs)
-		if result == nil || len(result) == 0 {
-			h.logger.Warn("Parsing URLs returned an empty result")
-			return
-		}
-
-		if err := h.dataInserter.InsertData(req.SpreadsheetID, constants.DataTable, result); err != nil {
-			h.logger.Error("Parsing URLs returned an error",
-				slog.String("spreadsheet_id", req.SpreadsheetID),
-				slog.String("err", err.Error()),
-			)
-			return
-		}
-	}()
-
-	// Возвращаем успешный ответ
-	resp := Response{
-		Success: true,
-		Message: "Request received successfully",
-	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(resp)
-}
-
 func (h *ParsingHandler) Parsing2(w http.ResponseWriter, r *http.Request) {
 	// Разрешаем только POST метод
 	if r.Method != http.MethodPost {
@@ -134,7 +62,7 @@ func (h *ParsingHandler) Parsing2(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Парсим JSON из тела запроса
-	var req RequestV2
+	var req Request
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&req); err != nil {
 		resp := Response{
@@ -173,7 +101,10 @@ func (h *ParsingHandler) Parsing2(w http.ResponseWriter, r *http.Request) {
 
 		urls, err := h.urlsProvider.FindUrls(
 			req.IsSelected,
-			[]models.ParsingType{models.Instagram},
+			[]models.ParsingType{
+				models.Instagram,
+				models.VK,
+			},
 			req.SheetName,
 			req.SpreadsheetID,
 		)

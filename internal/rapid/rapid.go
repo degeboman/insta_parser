@@ -1,6 +1,7 @@
 package rapid
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,15 +15,24 @@ import (
 	"inst_parser/internal/models"
 )
 
+type vkParser interface {
+	GetClipInfoByURL(ctx context.Context, url string) (*models.ClipInfo, error)
+}
 type Service struct {
 	rapidAPIKey   string
 	logger        *slog.Logger
 	httpClient    *http.Client
 	sheetsService *google_sheet.Service
 	processingMu  sync.Mutex
+	vkParser      vkParser
 }
 
-func NewService(rapidApiKey string, log *slog.Logger, sheetsService *google_sheet.Service) *Service {
+func NewService(
+	rapidApiKey string,
+	log *slog.Logger,
+	sheetsService *google_sheet.Service,
+	vkParser vkParser,
+) *Service {
 	return &Service{
 		logger:        log,
 		rapidAPIKey:   rapidApiKey,
@@ -30,6 +40,7 @@ func NewService(rapidApiKey string, log *slog.Logger, sheetsService *google_shee
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
+		vkParser: vkParser,
 	}
 }
 
@@ -89,24 +100,72 @@ func (s *Service) processBatch(urls []string) []*models.ResultRow {
 	results := make([]*models.ResultRow, 0, len(urls))
 
 	for _, url := range urls {
-		time.Sleep(550 * time.Millisecond)
-		data, err := s.fetchInstagramDataSafe(url)
-		if err != nil {
-			s.logger.Warn("Error fetching instagram data", err, slog.String("url", url))
-			results = append(results, models.EmptyResultRow(url))
+		var resultRow *models.ResultRow
+		switch models.ParsingTypeByUrl(url) {
+		case models.Instagram:
+			time.Sleep(550 * time.Millisecond)
+			resultRow = s.parseInstagram(url)
+		case models.VK:
+			resultRow = s.parseVK(url)
+		default:
+			s.logger.Warn("Unsupported URL type", slog.String("url", url))
 			continue
 		}
 
-		resultRow, err := processInstagramResponse(data, url)
-		if err != nil {
-			s.logger.Error("Error processing instagram response", err)
+		if resultRow == nil {
 			continue
 		}
-
 		results = append(results, resultRow)
 	}
 
 	return results
+}
+
+func (s *Service) parseInstagram(url string) *models.ResultRow {
+	data, err := s.fetchInstagramDataSafe(url)
+	if err != nil {
+		s.logger.Warn("Error fetching instagram data", err, slog.String("url", url))
+		return models.EmptyResultRow(url)
+	}
+
+	resultRow, err := processInstagramResponse(data, url)
+	if err != nil {
+		s.logger.Error("Error processing instagram response", err)
+		return nil
+	}
+
+	return resultRow
+}
+
+func (s *Service) parseVK(url string) *models.ResultRow {
+	result, err := s.vkParser.GetClipInfoByURL(context.Background(), url)
+	if err != nil {
+		s.logger.Warn("Error getting clip info", err)
+		return nil
+	}
+
+	moscow, err := time.LoadLocation("Europe/Moscow")
+	if err != nil {
+		log.Printf("Warning: could not load Moscow timezone, using local: %v", err)
+		moscow = time.Local
+	}
+	pubTimeInMoscow := result.Date.In(moscow)
+	publishDate := pubTimeInMoscow.Format("02.01.2006 15:04")
+	parsingDate := time.Now().In(moscow).Format("02.01.2006 15:04")
+
+	resultRow := models.ResultRow{
+		URL:         url,
+		Views:       int64(result.Views),
+		Likes:       int64(result.Likes),
+		Comments:    int64(result.Comments),
+		Shares:      int64(result.Reposts),
+		ER:          getER(int64(result.Likes), int64(result.Reposts), int64(result.Comments), int64(result.Views)),
+		Virality:    getVirality(int64(result.Reposts), int64(result.Views)),
+		PublishDate: publishDate,
+		ParsingDate: parsingDate,
+	}
+
+	return &resultRow
 }
 
 func (s *Service) fetchInstagramDataSafe(reelURL string) (*models.InstagramAPIResponse, error) {

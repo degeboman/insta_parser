@@ -9,6 +9,7 @@ import (
 
 type Config struct {
 	Rapid                  Rapid
+	VK                     VK
 	GoogleDriveCredentials GoogleDriveCredentials
 }
 

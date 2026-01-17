@@ -177,7 +177,7 @@ func (s *UrlsService) GetUrls(spreadsheetID, sheetName string, positions *models
 
 		url = strings.TrimSpace(url)
 
-		if isAvailableByParsingType(url, parsingTypes) {
+		if models.IsAvailableByParsingType(url, parsingTypes) {
 			// Добавляем URL в результат
 			urls = append(urls, url)
 		}
