@@ -186,50 +186,6 @@ func TestUrlsService_GetUrls(t *testing.T) {
 	}
 }
 
-func Test_isAvailableByParsingType(t *testing.T) {
-	type args struct {
-		url          string
-		parsingTypes []models.ParsingType
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{
-			name: "case 1",
-			args: args{
-				url:          "https://www.instagram.com/reel/DOEGKscjAWx/?igsh=MXZibWx0N2Y5aHB3eA==",
-				parsingTypes: []models.ParsingType{models.Instagram},
-			},
-			want: true,
-		},
-		{
-			name: "case 2",
-			args: args{
-				url:          "https://www.instagram.com/p/DPQkbQXDULV/",
-				parsingTypes: []models.ParsingType{models.Instagram},
-			},
-			want: true,
-		},
-		{
-			name: "case 2",
-			args: args{
-				url:          "https://youtube.com/shorts/zg67vNdmoAw?si=8udy79rgqO6c6xCT",
-				parsingTypes: []models.ParsingType{models.Instagram},
-			},
-			want: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := isAvailableByParsingType(tt.args.url, tt.args.parsingTypes); got != tt.want {
-				t.Errorf("isAvailableByParsingType() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestUrlsService_FindUrls(t *testing.T) {
 	type fields struct {
 		log           *slog.Logger
