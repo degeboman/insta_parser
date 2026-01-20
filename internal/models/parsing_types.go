@@ -33,6 +33,10 @@ func ParsingTypeByUrl(url string) ParsingType {
 		return VK
 	}
 
+	if strings.Contains(urlLower, "vk.ru") {
+		return VK
+	}
+
 	// Проверяем, содержит ли URL домен instagram.com
 	if strings.Contains(urlLower, "instagram.com") {
 		return Instagram
