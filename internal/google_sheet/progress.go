@@ -16,26 +16,19 @@ const (
 
 type ProgressTracker struct {
 	sheetsService *sheets.Service
-	spreadsheetID string
-	sheetID       int64
 }
 
-func NewProgressTracker(sheetsService *sheets.Service, spreadsheetID string) (*ProgressTracker, error) {
+func NewProgressTracker(sheetsService *sheets.Service) *ProgressTracker {
 	pt := &ProgressTracker{
 		sheetsService: sheetsService,
-		spreadsheetID: spreadsheetID,
 	}
 
-	if err := pt.ensureProgressSheet(); err != nil {
-		return nil, err
-	}
-
-	return pt, nil
+	return pt
 }
 
-func (pt *ProgressTracker) ensureProgressSheet() error {
+func (pt *ProgressTracker) EnsureProgressSheet(spreadsheetID string) error {
 	// Получаем информацию о таблице
-	spreadsheet, err := pt.sheetsService.Spreadsheets.Get(pt.spreadsheetID).Do()
+	spreadsheet, err := pt.sheetsService.Spreadsheets.Get(spreadsheetID).Do()
 	if err != nil {
 		return fmt.Errorf("failed to get spreadsheet: %w", err)
 	}
@@ -44,7 +37,6 @@ func (pt *ProgressTracker) ensureProgressSheet() error {
 	sheetExists := false
 	for _, sheet := range spreadsheet.Sheets {
 		if sheet.Properties.Title == constants.ProgressTable {
-			pt.sheetID = sheet.Properties.SheetId
 			sheetExists = true
 			break
 		}
@@ -64,15 +56,13 @@ func (pt *ProgressTracker) ensureProgressSheet() error {
 			Requests: []*sheets.Request{req},
 		}
 
-		resp, err := pt.sheetsService.Spreadsheets.BatchUpdate(pt.spreadsheetID, batchUpdateRequest).Do()
+		_, err := pt.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdateRequest).Do()
 		if err != nil {
 			return fmt.Errorf("failed to create progress sheet: %w", err)
 		}
 
-		pt.sheetID = resp.Replies[0].AddSheet.Properties.SheetId
-
 		// Добавляем заголовки
-		if err := pt.writeHeaders(); err != nil {
+		if err := pt.writeHeaders(spreadsheetID); err != nil {
 			return err
 		}
 	}
@@ -80,7 +70,7 @@ func (pt *ProgressTracker) ensureProgressSheet() error {
 	return nil
 }
 
-func (pt *ProgressTracker) writeHeaders() error {
+func (pt *ProgressTracker) writeHeaders(spreadsheetID string) error {
 	headers := []interface{}{"Начало парсинга", "Всего ссылок", "Обработано", "Конец парсинга"}
 
 	valueRange := &sheets.ValueRange{
@@ -89,7 +79,7 @@ func (pt *ProgressTracker) writeHeaders() error {
 
 	rangeStr := fmt.Sprintf("%s!A%d:D%d", constants.ProgressTable, ProgressHeaderRow, ProgressHeaderRow)
 	_, err := pt.sheetsService.Spreadsheets.Values.Update(
-		pt.spreadsheetID,
+		spreadsheetID,
 		rangeStr,
 		valueRange,
 	).ValueInputOption("RAW").Do()
@@ -97,7 +87,7 @@ func (pt *ProgressTracker) writeHeaders() error {
 	return err
 }
 
-func (pt *ProgressTracker) StartParsing(totalURLs int) (int, error) {
+func (pt *ProgressTracker) StartParsing(spreadsheetID string, totalURLs int) (int, error) {
 	moscow, err := time.LoadLocation("Europe/Moscow")
 	if err != nil {
 		log.Printf("Warning: could not load Moscow timezone, using local: %v", err)
@@ -113,7 +103,7 @@ func (pt *ProgressTracker) StartParsing(totalURLs int) (int, error) {
 	// Добавляем новую строку после заголовка
 	rangeStr := fmt.Sprintf("%s!A2:D2", constants.ProgressTable)
 	_, err = pt.sheetsService.Spreadsheets.Values.Update(
-		pt.spreadsheetID,
+		spreadsheetID,
 		rangeStr,
 		valueRange,
 	).ValueInputOption("RAW").Do()
@@ -125,14 +115,14 @@ func (pt *ProgressTracker) StartParsing(totalURLs int) (int, error) {
 	return 2, nil // Возвращаем номер строки
 }
 
-func (pt *ProgressTracker) UpdateProgress(row, progress int) error {
+func (pt *ProgressTracker) UpdateProgress(spreadsheetID string, row, progress int) error {
 	valueRange := &sheets.ValueRange{
 		Values: [][]interface{}{{progress}},
 	}
 
 	rangeStr := fmt.Sprintf("%s!C%d", constants.ProgressTable, row)
 	_, err := pt.sheetsService.Spreadsheets.Values.Update(
-		pt.spreadsheetID,
+		spreadsheetID,
 		rangeStr,
 		valueRange,
 	).ValueInputOption("RAW").Do()
@@ -140,7 +130,7 @@ func (pt *ProgressTracker) UpdateProgress(row, progress int) error {
 	return err
 }
 
-func (pt *ProgressTracker) FinishParsing(row int) error {
+func (pt *ProgressTracker) FinishParsing(spreadsheetID string, row int) error {
 	moscow, err := time.LoadLocation("Europe/Moscow")
 	if err != nil {
 		log.Printf("Warning: could not load Moscow timezone, using local: %v", err)
@@ -154,7 +144,7 @@ func (pt *ProgressTracker) FinishParsing(row int) error {
 
 	rangeStr := fmt.Sprintf("%s!D%d", constants.ProgressTable, row)
 	_, err = pt.sheetsService.Spreadsheets.Values.Update(
-		pt.spreadsheetID,
+		spreadsheetID,
 		rangeStr,
 		valueRange,
 	).ValueInputOption("RAW").Do()

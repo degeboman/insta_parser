@@ -1,6 +1,7 @@
 package google_sheet
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -35,7 +36,9 @@ func (s *UrlsService) SheetIDByName(spreadsheetID, name string) (int64, error) {
 }
 
 func (s *UrlsService) FindUrls(isSelected bool, parsingTypes []models.ParsingType, sheetName, spreadsheetID string) ([]string, error) {
-	columnsPositions, err := s.FindColumns(spreadsheetID, sheetName)
+	const urlSearchWord = "видео"
+
+	columnsPositions, err := s.findColumns(spreadsheetID, sheetName, urlSearchWord)
 	if err != nil {
 		return nil, err
 	}
@@ -47,12 +50,30 @@ func (s *UrlsService) FindUrls(isSelected bool, parsingTypes []models.ParsingTyp
 	return s.GetUrls(spreadsheetID, sheetName, columnsPositions, parsingTypes)
 }
 
-func (s *UrlsService) FindColumns(spreadsheetID, sheetName string) (*models.ColumnPositions, error) {
+func (s *UrlsService) GroupsUrls(
+	isSelected bool,
+	sheetName, spreadsheetID string,
+) ([]string, error) {
+	const urlSearchWord = "аккаунт"
+
+	columnsPositions, err := s.findColumns(spreadsheetID, sheetName, urlSearchWord)
+	if err != nil {
+		return nil, err
+	}
+
+	if !isSelected {
+		columnsPositions.CheckboxColumnIndex = -1
+	}
+
+	return s.GetUrls(spreadsheetID, sheetName, columnsPositions, []models.ParsingType{models.VK})
+}
+
+func (s *UrlsService) findColumns(spreadsheetID, sheetName, urlWord string) (*models.ColumnPositions, error) {
 	// Получаем вторую строку (строка 2 в Sheets соответствует индексу 1)
 	readRange := fmt.Sprintf("%s!2:2", sheetName)
 	resp, err := s.sheetsService.Spreadsheets.Values.Get(spreadsheetID, readRange).Do()
 	if err != nil {
-		return nil, fmt.Errorf("ошибка получения данных листа: %w", err)
+		return nil, fmt.Errorf("failed to get values from list: %w", err)
 	}
 
 	if len(resp.Values) == 0 {
@@ -67,6 +88,10 @@ func (s *UrlsService) FindColumns(spreadsheetID, sheetName string) (*models.Colu
 
 	// Ищем колонки
 	for i, cell := range headerRow {
+		if positions.URLColumnIndex != -1 && positions.CheckboxColumnIndex != -1 {
+			break
+		}
+
 		cellValue, ok := cell.(string)
 		if !ok {
 			continue
@@ -75,13 +100,13 @@ func (s *UrlsService) FindColumns(spreadsheetID, sheetName string) (*models.Colu
 		lowerValue := strings.ToLower(strings.TrimSpace(cellValue))
 
 		// Поиск колонки "Ссылка на видео"
-		if strings.Contains(lowerValue, "ссылка") && strings.Contains(lowerValue, "видео") {
+		if strings.Contains(lowerValue, "ссылка") && strings.Contains(lowerValue, urlWord) {
 			positions.URLColumnIndex = i + 1 // Преобразуем в 1-based индекс
-			s.log.Info(fmt.Sprintf("Найдена колонка \"Ссылка на видео\" в позиции: %d", positions.URLColumnIndex))
+			s.log.Info(fmt.Sprintf("Найдена колонка \"Ссылка на %s\" в позиции: %d", urlWord, positions.URLColumnIndex))
 		}
 
 		// Поиск колонки "Парсинг" или "Select"
-		if lowerValue == "парсинг" {
+		if strings.Contains(lowerValue, "парсинг") {
 			positions.CheckboxColumnIndex = i + 1 // Преобразуем в 1-based индекс
 			s.log.Info(fmt.Sprintf("Найдена колонка \"%s\" в позиции: %d", cellValue, positions.CheckboxColumnIndex))
 		}
@@ -89,23 +114,23 @@ func (s *UrlsService) FindColumns(spreadsheetID, sheetName string) (*models.Colu
 
 	// Проверяем, найдена ли обязательная колонка
 	if positions.URLColumnIndex == -1 {
-		return nil, fmt.Errorf(
-			"не найдена колонка \"Ссылка на видео\" во второй строке. " +
-				"Убедитесь, что:\n1. Вы находитесь на нужном листе" +
-				"2. Во второй строке есть заголовок \"Ссылка на видео\"",
-		)
+		return nil, errors.New("failed to find url column")
 	}
 
 	return positions, nil
 }
 
-func (s *UrlsService) GetUrls(spreadsheetID, sheetName string, positions *models.ColumnPositions, parsingTypes []models.ParsingType) ([]string, error) {
+func (s *UrlsService) GetUrls(
+	spreadsheetID, sheetName string,
+	positions *models.ColumnPositions,
+	parsingTypes []models.ParsingType,
+) ([]string, error) {
 	if positions == nil {
-		return nil, fmt.Errorf("positions не может быть nil")
+		return nil, fmt.Errorf("positions cannot be nil")
 	}
 
 	if positions.URLColumnIndex <= 0 {
-		return nil, fmt.Errorf("некорректный индекс колонки URL: %d", positions.URLColumnIndex)
+		return nil, fmt.Errorf("invalid url column index URL: %d", positions.URLColumnIndex)
 	}
 
 	var readRange string
@@ -125,7 +150,7 @@ func (s *UrlsService) GetUrls(spreadsheetID, sheetName string, positions *models
 
 	resp, err := s.sheetsService.Spreadsheets.Values.Get(spreadsheetID, readRange).Do()
 	if err != nil {
-		return nil, fmt.Errorf("ошибка чтения данных: %w", err)
+		return nil, fmt.Errorf("failed to read data: %w", err)
 	}
 
 	if len(resp.Values) == 0 {

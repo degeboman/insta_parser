@@ -71,6 +71,7 @@ type (
 		Width  int    `json:"width"`
 	}
 )
+
 type InstagramAPIResponse struct {
 	Data struct {
 		Items []InstagramItem `json:"items"`
