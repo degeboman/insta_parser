@@ -65,6 +65,7 @@ func TestUrlsService_FindColumns(t *testing.T) {
 	type fields struct {
 		spreadsheetID string
 		sheetsService *sheets.Service
+		urlSearchWord string
 	}
 	type args struct {
 		sheetName string
@@ -84,6 +85,7 @@ func TestUrlsService_FindColumns(t *testing.T) {
 			fields: fields{
 				spreadsheetID: "1ogSt0VDKj-0Ajuz8U7J0gxs33BoozIWvizffl1z16-E",
 				sheetsService: srv.SheetsService,
+				urlSearchWord: "видео",
 			},
 			args: args{
 				sheetName: "данные",
@@ -95,10 +97,11 @@ func TestUrlsService_FindColumns(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "case 1",
+			name: "case 2",
 			fields: fields{
 				spreadsheetID: "1ogSt0VDKj-0Ajuz8U7J0gxs33BoozIWvizffl1z16-E",
 				sheetsService: srv.SheetsService,
+				urlSearchWord: "видео",
 			},
 			args: args{
 				sheetName: "🟢 Сет 2 // декабрь",
@@ -109,19 +112,36 @@ func TestUrlsService_FindColumns(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "case 3",
+			fields: fields{
+				spreadsheetID: "1J-_Ka6O8EGWjwbsHxOxdve-H2CFPUXTIeV7phAOlK-8",
+				sheetsService: srv.SheetsService,
+				urlSearchWord: "аккаунт",
+			},
+			args: args{
+				sheetName: "🟡 Парсинг аккаунтов",
+			},
+			want: &models.ColumnPositions{
+				URLColumnIndex:      1,
+				CheckboxColumnIndex: 2,
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &UrlsService{
+				log:           logger.NewLogger(),
 				sheetsService: tt.fields.sheetsService,
 			}
-			got, err := s.FindColumns(tt.fields.spreadsheetID, tt.args.sheetName)
+			got, err := s.findColumns(tt.fields.spreadsheetID, tt.args.sheetName, tt.fields.urlSearchWord)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("FindColumns() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("findColumns() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("FindColumns() got = %v, want %v", got, tt.want)
+				t.Errorf("findColumns() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -163,6 +183,24 @@ func TestUrlsService_GetUrls(t *testing.T) {
 					URLColumnIndex:      1,
 					CheckboxColumnIndex: 2,
 				},
+			},
+			want:    []string{},
+			wantErr: false,
+		},
+		{
+			name: "case 2",
+			fields: fields{
+				log:           l,
+				spreadsheetID: "1J-_Ka6O8EGWjwbsHxOxdve-H2CFPUXTIeV7phAOlK-8",
+				sheetsService: srv.SheetsService,
+			},
+			args: args{
+				sheetName: "🟡 Парсинг аккаунтов",
+				positions: &models.ColumnPositions{
+					URLColumnIndex:      1,
+					CheckboxColumnIndex: 2,
+				},
+				parsingTypes: []models.ParsingType{models.VK},
 			},
 			want:    []string{},
 			wantErr: false,

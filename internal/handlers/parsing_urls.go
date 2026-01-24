@@ -1,4 +1,4 @@
-package handler
+package handlers
 
 import (
 	"encoding/json"
@@ -9,16 +9,15 @@ import (
 	"inst_parser/internal/models"
 )
 
-type Request struct {
+type ParsingUrlsRequest struct {
 	SpreadsheetID string `json:"spreadsheet_id"`
 	SheetName     string `json:"sheet_name"`
 	IsSelected    bool   `json:"is_selected"`
 }
 
-type Response struct {
-	Success bool     `json:"success"`
-	Message string   `json:"message"`
-	Data    []string `json:"data"`
+type ParsingUrlsResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
 }
 
 type (
@@ -33,20 +32,20 @@ type (
 	}
 )
 
-type ParsingHandler struct {
+type ParsingUrlsHandler struct {
 	logger       *slog.Logger
 	parser       Parser
 	dataInserter DataInserter
 	urlsProvider UrlsProvider
 }
 
-func NewParsingHandler(
+func NewParsingUrlsHandler(
 	log *slog.Logger,
 	parser Parser,
 	inserter DataInserter,
 	urlsProvider UrlsProvider,
-) *ParsingHandler {
-	return &ParsingHandler{
+) *ParsingUrlsHandler {
+	return &ParsingUrlsHandler{
 		logger:       log,
 		parser:       parser,
 		dataInserter: inserter,
@@ -54,7 +53,7 @@ func NewParsingHandler(
 	}
 }
 
-func (h *ParsingHandler) Parsing2(w http.ResponseWriter, r *http.Request) {
+func (h *ParsingUrlsHandler) ParsingUrls(w http.ResponseWriter, r *http.Request) {
 	// Разрешаем только POST метод
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -62,10 +61,10 @@ func (h *ParsingHandler) Parsing2(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Парсим JSON из тела запроса
-	var req Request
+	var req ParsingUrlsRequest
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&req); err != nil {
-		resp := Response{
+		resp := ParsingUrlsResponse{
 			Success: false,
 			Message: "Invalid JSON format",
 		}
@@ -76,7 +75,7 @@ func (h *ParsingHandler) Parsing2(w http.ResponseWriter, r *http.Request) {
 
 	// Проверяем, что tablename передан
 	if req.SpreadsheetID == "" {
-		resp := Response{
+		resp := ParsingUrlsResponse{
 			Success: false,
 			Message: "spreadsheet_id is required",
 		}
@@ -86,7 +85,7 @@ func (h *ParsingHandler) Parsing2(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.SheetName == "" {
-		resp := Response{
+		resp := ParsingUrlsResponse{
 			Success: false,
 			Message: "sheetname is required",
 		}
@@ -96,8 +95,8 @@ func (h *ParsingHandler) Parsing2(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go func() {
-		h.logger.Info("Parsing2 request started")
-		defer h.logger.Info("Parsing2 request finished")
+		h.logger.Info("ParsingUrls request started")
+		defer h.logger.Info("ParsingUrls request finished")
 
 		urls, err := h.urlsProvider.FindUrls(
 			req.IsSelected,
@@ -124,14 +123,14 @@ func (h *ParsingHandler) Parsing2(w http.ResponseWriter, r *http.Request) {
 		h.logger.Info("ParseUrl started")
 		result := h.parser.ParseUrl(req.SpreadsheetID, urls)
 		if result == nil || len(result) == 0 {
-			h.logger.Warn("Parsing URLs returned an empty result")
+			h.logger.Warn("ParsingUrls URLs returned an empty result")
 			return
 		}
 		h.logger.Info("ParseUrl finished")
 
 		h.logger.Info("InsertData started")
 		if err := h.dataInserter.InsertData(req.SpreadsheetID, constants.DataTable, result); err != nil {
-			h.logger.Error("Parsing URLs returned an error",
+			h.logger.Error("ParsingUrls URLs returned an error",
 				slog.String("spreadsheet_id", req.SpreadsheetID),
 				slog.String("err", err.Error()),
 			)
@@ -141,9 +140,9 @@ func (h *ParsingHandler) Parsing2(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// Возвращаем успешный ответ
-	resp := Response{
+	resp := ParsingUrlsResponse{
 		Success: true,
-		Message: "Request received successfully",
+		Message: "ParsingUrlsRequest received successfully",
 	}
 
 	w.WriteHeader(http.StatusOK)

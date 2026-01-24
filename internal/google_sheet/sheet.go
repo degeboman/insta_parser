@@ -95,6 +95,52 @@ func (s *Service) InsertData(spreadsheetID, sheetName string, data []*models.Res
 	return nil
 }
 
+func (s *Service) InsertGroupsData(spreadsheetID string, sheetName string, data []*models.ClipInfo) error {
+	if data == nil {
+		return nil
+	}
+
+	values := make([][]interface{}, 0, len(data))
+
+	for _, item := range data {
+		if item == nil {
+			continue
+		}
+		rowValues := []interface{}{
+			item.GroupUrl,
+			item.URL,
+			item.Description,
+			item.Views,
+			item.Likes,
+			item.Comments,
+			item.Shares,
+			item.ER,
+			item.Virality,
+			item.ParsingDate,
+			item.PublishDate,
+		}
+		values = append(values, rowValues)
+	}
+
+	valueRange := &sheets.ValueRange{
+		Values: values,
+	}
+
+	rangeData := fmt.Sprintf("%s!A:I", sheetName)
+
+	_, err := s.SheetsService.Spreadsheets.Values.Append(
+		spreadsheetID,
+		rangeData,
+		valueRange,
+	).ValueInputOption("USER_ENTERED").Do()
+
+	if err != nil {
+		return fmt.Errorf("ошибка вставки данных: %v", err)
+	}
+
+	return nil
+}
+
 func getSheetService() (*sheets.Service, error) {
 	ctx := context.Background()
 
