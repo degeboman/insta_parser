@@ -18,7 +18,7 @@ func main() {
 
 	l.Info("Starting server")
 
-	vksrv := vk.NewVKService(cfg.VK.Token)
+	vksrv := vk.NewVKService(l, cfg.VK.Token)
 	sheetSrv := google_sheet.NewService(cfg.GoogleDriveCredentials)
 	tracker := google_sheet.NewProgressTracker(sheetSrv.SheetsService)
 	rapidSrv := rapid.NewService(cfg.Rapid.ApiKey, l, sheetSrv, vksrv, tracker)

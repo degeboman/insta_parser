@@ -3,6 +3,7 @@ package vk
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strconv"
 	"time"
@@ -13,12 +14,16 @@ import (
 )
 
 type Service struct {
-	vk *api.VK
+	logger *slog.Logger
+	vk     *api.VK
 }
 
-func NewVKService(accessToken string) *Service {
+func NewVKService(logger *slog.Logger, accessToken string) *Service {
 	vk := api.NewVK(accessToken)
-	return &Service{vk: vk}
+	return &Service{
+		vk:     vk,
+		logger: logger,
+	}
 }
 
 // GetClipInfoByURL получает информацию о клипе по URL
@@ -37,6 +42,10 @@ func (s *Service) OwnerIDsByGroupsUrls(urls []*models.UrlInfo) ([]*models.GroupI
 	for i, url := range urls {
 		groupID, err := parseGroupURL(url.URL)
 		if err != nil {
+			s.logger.Error("failed to parse group url",
+				slog.String("url", url.URL),
+				slog.String("err", err.Error()),
+			)
 			return nil, err
 		}
 
@@ -167,9 +176,6 @@ func parseGroupURL(url string) (string, error) {
 	}
 
 	groupID := matches[1]
-
-	// Убираем префиксы club и public, если они есть
-	groupID = regexp.MustCompile(`^(club|public)`).ReplaceAllString(groupID, "")
 
 	return groupID, nil
 
