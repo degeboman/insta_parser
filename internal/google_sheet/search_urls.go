@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 
 	"inst_parser/internal/models"
@@ -35,7 +36,7 @@ func (s *UrlsService) SheetIDByName(spreadsheetID, name string) (int64, error) {
 	return 0, fmt.Errorf("could not find sheet with name %s", name)
 }
 
-func (s *UrlsService) FindUrls(isSelected bool, parsingTypes []models.ParsingType, sheetName, spreadsheetID string) ([]string, error) {
+func (s *UrlsService) FindUrls(isSelected bool, parsingTypes []models.ParsingType, sheetName, spreadsheetID string) ([]*models.UrlInfo, error) {
 	const urlSearchWord = "видео"
 
 	columnsPositions, err := s.findColumns(spreadsheetID, sheetName, urlSearchWord)
@@ -53,7 +54,7 @@ func (s *UrlsService) FindUrls(isSelected bool, parsingTypes []models.ParsingTyp
 func (s *UrlsService) GroupsUrls(
 	isSelected bool,
 	sheetName, spreadsheetID string,
-) ([]string, error) {
+) ([]*models.UrlInfo, error) {
 	const urlSearchWord = "аккаунт"
 
 	columnsPositions, err := s.findColumns(spreadsheetID, sheetName, urlSearchWord)
@@ -84,11 +85,14 @@ func (s *UrlsService) findColumns(spreadsheetID, sheetName, urlWord string) (*mo
 	positions := &models.ColumnPositions{
 		URLColumnIndex:      -1,
 		CheckboxColumnIndex: -1,
+		CountColumnIndex:    -1,
 	}
 
 	// Ищем колонки
 	for i, cell := range headerRow {
-		if positions.URLColumnIndex != -1 && positions.CheckboxColumnIndex != -1 {
+		if positions.URLColumnIndex != -1 &&
+			positions.CheckboxColumnIndex != -1 &&
+			positions.CountColumnIndex != -1 {
 			break
 		}
 
@@ -110,6 +114,12 @@ func (s *UrlsService) findColumns(spreadsheetID, sheetName, urlWord string) (*mo
 			positions.CheckboxColumnIndex = i + 1 // Преобразуем в 1-based индекс
 			s.log.Info(fmt.Sprintf("Найдена колонка \"%s\" в позиции: %d", cellValue, positions.CheckboxColumnIndex))
 		}
+
+		// Поиск колонки "Парсинг" или "Select"
+		if strings.Contains(lowerValue, "глубина") {
+			positions.CountColumnIndex = i + 1 // Преобразуем в 1-based индекс
+			s.log.Info(fmt.Sprintf("Найдена колонка \"%s\" в позиции: %d", cellValue, positions.CountColumnIndex))
+		}
 	}
 
 	// Проверяем, найдена ли обязательная колонка
@@ -124,7 +134,7 @@ func (s *UrlsService) GetUrls(
 	spreadsheetID, sheetName string,
 	positions *models.ColumnPositions,
 	parsingTypes []models.ParsingType,
-) ([]string, error) {
+) ([]*models.UrlInfo, error) {
 	if positions == nil {
 		return nil, fmt.Errorf("positions cannot be nil")
 	}
@@ -134,7 +144,15 @@ func (s *UrlsService) GetUrls(
 	}
 
 	var readRange string
-	if positions.CheckboxColumnIndex > 0 {
+	if positions.CountColumnIndex > 0 {
+		// Если есть колонка чекбокса, читаем диапазон от минимальной до максимальной колонки
+		startCol := min(positions.URLColumnIndex, positions.CheckboxColumnIndex)
+		endCol := max(positions.CountColumnIndex, positions.CountColumnIndex)
+
+		startLetter := getColumnLetter(startCol)
+		endLetter := getColumnLetter(endCol)
+		readRange = fmt.Sprintf("%s!%s3:%s", sheetName, startLetter, endLetter)
+	} else if positions.CheckboxColumnIndex > 0 {
 		// Если есть колонка чекбокса, читаем диапазон от минимальной до максимальной колонки
 		startCol := min(positions.URLColumnIndex, positions.CheckboxColumnIndex)
 		endCol := max(positions.URLColumnIndex, positions.CheckboxColumnIndex)
@@ -154,16 +172,20 @@ func (s *UrlsService) GetUrls(
 	}
 
 	if len(resp.Values) == 0 {
-		return []string{}, nil
+		return nil, nil
 	}
 
-	var urls []string
+	var urls []*models.UrlInfo
 
 	// Конвертируем 1-based индексы в 0-based для работы с массивом
 	urlColIndex := 0
 	checkboxColIndex := -1
+	countColIndex := -1
 	if positions.CheckboxColumnIndex > 0 {
 		checkboxColIndex = positions.CheckboxColumnIndex - positions.URLColumnIndex
+	}
+	if positions.CountColumnIndex > 0 {
+		countColIndex = positions.CountColumnIndex - positions.URLColumnIndex
 	}
 
 	// Обрабатываем каждую строку
@@ -200,11 +222,33 @@ func (s *UrlsService) GetUrls(
 			}
 		}
 
+		var count string
+		if countColIndex >= 0 {
+			if countColIndex >= len(row) {
+				s.log.Info("Предупреждение: строка %d не содержит колонку глубины", slog.Int("row", rowIndex+3))
+
+			}
+
+			countCell := row[countColIndex]
+			count, ok = countCell.(string)
+			if !ok {
+				// Пропускаем пустые или нестроковые значения
+				continue
+			}
+		}
+
 		url = strings.TrimSpace(url)
+		countInt, err := strconv.Atoi(strings.TrimSpace(count))
+		if err != nil {
+			countInt = 20
+		}
 
 		if models.IsAvailableByParsingType(url, parsingTypes) {
 			// Добавляем URL в результат
-			urls = append(urls, url)
+			urls = append(urls, &models.UrlInfo{
+				URL:   url,
+				Count: countInt,
+			})
 		}
 	}
 

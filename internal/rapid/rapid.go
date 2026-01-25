@@ -58,7 +58,7 @@ func NewService(
 	}
 }
 
-func (s *Service) ParseUrl(spreadsheetID string, reelUrl []string) []*models.ResultRow {
+func (s *Service) ParseUrl(spreadsheetID string, reelUrl []*models.UrlInfo) []*models.ResultRow {
 	s.processingInstagramMu.Lock()
 	defer s.processingInstagramMu.Unlock()
 
@@ -104,20 +104,20 @@ func (s *Service) ParseUrl(spreadsheetID string, reelUrl []string) []*models.Res
 	return results
 }
 
-func (s *Service) processBatch(urls []string) []*models.ResultRow {
+func (s *Service) processBatch(urls []*models.UrlInfo) []*models.ResultRow {
 	results := make([]*models.ResultRow, 0, len(urls))
 
 	for _, url := range urls {
 		var resultRow *models.ResultRow
-		switch models.ParsingTypeByUrl(url) {
+		switch models.ParsingTypeByUrl(url.URL) {
 		case models.Instagram:
 			time.Sleep(550 * time.Millisecond)
-			resultRow = s.parseInstagram(url)
+			resultRow = s.parseInstagram(url.URL)
 		case models.VK:
 			time.Sleep(250 * time.Millisecond)
-			resultRow = s.parseVK(url)
+			resultRow = s.parseVK(url.URL)
 		default:
-			s.logger.Warn("Unsupported URL type", slog.String("url", url))
+			s.logger.Warn("Unsupported URL type", slog.String("url", url.URL))
 			continue
 		}
 
