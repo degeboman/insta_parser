@@ -22,13 +22,13 @@ type ParsingUrlsResponse struct {
 
 type (
 	Parser interface {
-		ParseUrl(spreadsheetID string, reelUrl []string) []*models.ResultRow
+		ParseUrl(spreadsheetID string, reelUrl []*models.UrlInfo) []*models.ResultRow
 	}
 	DataInserter interface {
 		InsertData(spreadsheetID, sheetName string, data []*models.ResultRow) error
 	}
 	UrlsProvider interface {
-		FindUrls(isSelected bool, parsingTypes []models.ParsingType, sheetName, spreadsheetID string) ([]string, error)
+		FindUrls(isSelected bool, parsingTypes []models.ParsingType, sheetName, spreadsheetID string) ([]*models.UrlInfo, error)
 	}
 )
 

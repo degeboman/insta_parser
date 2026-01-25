@@ -26,11 +26,11 @@ type (
 		GroupsUrls(
 			isSelected bool,
 			sheetName, spreadsheetID string,
-		) ([]string, error)
+		) ([]*models.UrlInfo, error)
 	}
 
 	OwnerIDsProvider interface {
-		OwnerIDsByGroupsUrls(groupsUrls []string) ([]*models.GroupInfoPair, error)
+		OwnerIDsByGroupsUrls(groupsUrls []*models.UrlInfo) ([]*models.GroupInfoPair, error)
 	}
 
 	ClipsInfoProvider interface {
@@ -78,7 +78,7 @@ func NewParsingVkGroupsHandler(
 }
 
 const (
-	maxCount     = 200
+	maxCount     = 10000
 	defaultCount = 10
 )
 
@@ -221,8 +221,14 @@ func (h *ParsingVkGroupsHandler) parsingVkGroups(
 
 	var processedCount int
 	for _, info := range groupsInfo {
-		// todo fix me
-		info.Count = 10
+		if info.Count <= 0 {
+			info.Count = defaultCount
+		}
+
+		if info.Count > maxCount {
+			info.Count = maxCount
+		}
+
 		result, getClipsInfoErr := h.clipsInfoProvider.GetClipsInfoByOwnerID(info)
 		if getClipsInfoErr != nil {
 			h.logger.Error("Failed to get clips info",

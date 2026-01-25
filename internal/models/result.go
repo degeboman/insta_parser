@@ -17,6 +17,11 @@ type ResultRow struct {
 	PublishDate string
 }
 
+type UrlInfo struct {
+	URL   string
+	Count int
+}
+
 func EmptyResultRow(url string) *ResultRow {
 	moscow, err := time.LoadLocation("Europe/Moscow")
 	if err != nil {
