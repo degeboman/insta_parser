@@ -256,16 +256,6 @@ func (s *UrlsService) GetUrls(
 	return urls, nil
 }
 
-func isAvailableByParsingType(url string, parsingTypes []models.ParsingType) bool {
-	for _, parsingType := range parsingTypes {
-		if !strings.Contains(url, string(parsingType)) {
-			return false
-		}
-	}
-
-	return true
-}
-
 func parseCheckboxValue(cellValue interface{}) (bool, bool) {
 	if cellValue == nil {
 		return false, true // Пустая ячейка = false
