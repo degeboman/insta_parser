@@ -64,6 +64,7 @@ func (s *Service) InsertData(spreadsheetID, sheetName string, data []*models.Res
 		}
 		rowValues := []interface{}{
 			item.URL,
+			item.Description,
 			item.Views,
 			item.Likes,
 			item.Comments,

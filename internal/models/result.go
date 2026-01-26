@@ -7,6 +7,7 @@ import (
 
 type ResultRow struct {
 	URL         string
+	Description string
 	Views       int64
 	Likes       int64
 	Comments    int64
@@ -31,6 +32,7 @@ func EmptyResultRow(url string) *ResultRow {
 	parsingDate := time.Now().In(moscow).Format("02.01.2006 15:04")
 	return &ResultRow{
 		URL:         url,
+		Description: "",
 		Views:       0,
 		Likes:       0,
 		Comments:    0,
