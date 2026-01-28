@@ -132,13 +132,14 @@ func (s *Service) getClipInfo(ctx context.Context, ownerID, clipID int) (*models
 	item := response.Items[0]
 
 	clipInfo := &models.ClipInfo{
-		OwnerID:  item.OwnerID,
-		ClipID:   item.ID,
-		Views:    item.Views,
-		Likes:    item.Likes.Count,
-		Comments: item.Comments,
-		Shares:   item.Reposts.Count,
-		Date:     time.Unix(int64(item.Date), 0),
+		Description: item.Description,
+		OwnerID:     item.OwnerID,
+		ClipID:      item.ID,
+		Views:       item.Views,
+		Likes:       item.Likes.Count,
+		Comments:    item.Comments,
+		Shares:      item.Reposts.Count,
+		Date:        time.Unix(int64(item.Date), 0),
 	}
 
 	return clipInfo, nil

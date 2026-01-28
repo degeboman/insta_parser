@@ -2,7 +2,9 @@ package rapid
 
 import (
 	"fmt"
+	"inst_parser/internal/models"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 )
@@ -53,8 +55,9 @@ func TestService_fetchInstagramDataSafe(t *testing.T) {
 
 func TestService_ParseUrl(t *testing.T) {
 	type fields struct {
-		rapidAPIKey string
-		httpClient  *http.Client
+		rapidAPIKey           string
+		httpClient            *http.Client
+		processingInstagramMu sync.Mutex
 	}
 	type args struct {
 		reelURL string
@@ -68,7 +71,8 @@ func TestService_ParseUrl(t *testing.T) {
 		{
 			name: "case 1",
 			fields: fields{
-				rapidAPIKey: "",
+				processingInstagramMu: sync.Mutex{},
+				rapidAPIKey:           "d0b61d8381msha85339d3ad2c820p1919e1jsn203a3291a43f",
 				httpClient: &http.Client{
 					Timeout: 5 * time.Second,
 				},
@@ -85,7 +89,7 @@ func TestService_ParseUrl(t *testing.T) {
 				rapidAPIKey: tt.fields.rapidAPIKey,
 				httpClient:  tt.fields.httpClient,
 			}
-			got := s.ParseUrl("1J-_Ka6O8EGWjwbsHxOxdve-H2CFPUXTIeV7phAOlK-8", []string{tt.args.reelURL})
+			got := s.ParseUrl("1J-_Ka6O8EGWjwbsHxOxdve-H2CFPUXTIeV7phAOlK-8", []*models.UrlInfo{{URL: tt.args.reelURL}})
 
 			fmt.Println(got)
 		})

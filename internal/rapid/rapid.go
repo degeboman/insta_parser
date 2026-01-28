@@ -73,14 +73,14 @@ func (s *Service) ParseUrl(spreadsheetID string, reelUrl []*models.UrlInfo) []*m
 
 	progressRow, errStartParsing := s.trackerService.StartParsing(spreadsheetID, len(reelUrl))
 	if errStartParsing != nil {
-		s.logger.Error("Error starting progress tracking", errStartParsing)
+		s.logger.Error("Error starting progress tracking", slog.String("err", errStartParsing.Error()))
 	}
 
 	processedCount := 0
 
 	defer func() {
 		if err := s.trackerService.FinishParsing(spreadsheetID, progressRow); err != nil {
-			s.logger.Error("Error finishing progress tracking", err)
+			s.logger.Error("Error finishing progress tracking", slog.String("err", err.Error()))
 		}
 	}()
 
@@ -97,7 +97,7 @@ func (s *Service) ParseUrl(spreadsheetID string, reelUrl []*models.UrlInfo) []*m
 		processedCount += len(batch)
 
 		if err := s.trackerService.UpdateProgress(spreadsheetID, progressRow, processedCount); err != nil {
-			s.logger.Error("Error updating progress", err)
+			s.logger.Error("Error updating progress", slog.String("err", err.Error()))
 		}
 	}
 
@@ -133,13 +133,17 @@ func (s *Service) processBatch(urls []*models.UrlInfo) []*models.ResultRow {
 func (s *Service) parseInstagram(url string) *models.ResultRow {
 	data, err := s.fetchInstagramDataSafe(url)
 	if err != nil {
-		s.logger.Warn("Error fetching instagram data", err, slog.String("url", url))
+		s.logger.Warn("Error fetching instagram data",
+			slog.String("url", url),
+			slog.String("err", err.Error()),
+		)
+
 		return models.EmptyResultRow(url)
 	}
 
 	resultRow, err := processInstagramResponse(data, url)
 	if err != nil {
-		s.logger.Error("Error processing instagram response", err)
+		s.logger.Error("Error processing instagram response", slog.String("err", err.Error()))
 		return nil
 	}
 
@@ -149,7 +153,7 @@ func (s *Service) parseInstagram(url string) *models.ResultRow {
 func (s *Service) parseVK(url string) *models.ResultRow {
 	result, err := s.vkParser.GetClipInfoByURL(context.Background(), url)
 	if err != nil {
-		s.logger.Warn("Error getting clip info", err)
+		s.logger.Warn("Error getting clip info", slog.String("err", err.Error()))
 		return nil
 	}
 
@@ -164,6 +168,7 @@ func (s *Service) parseVK(url string) *models.ResultRow {
 
 	resultRow := models.ResultRow{
 		URL:         url,
+		Description: result.Description,
 		Views:       int64(result.Views),
 		Likes:       int64(result.Likes),
 		Comments:    int64(result.Comments),
@@ -363,6 +368,7 @@ func processInstagramResponse(apiResponse *models.InstagramAPIResponse, url stri
 	// Создаем строку результата
 	result := &models.ResultRow{
 		URL:         url,
+		Description: item.Caption.Text,
 		Views:       views,
 		Likes:       likes,
 		Comments:    comments,
