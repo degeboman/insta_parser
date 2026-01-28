@@ -64,7 +64,6 @@ func (s *Service) InsertData(spreadsheetID, sheetName string, data []*models.Res
 		}
 		rowValues := []interface{}{
 			item.URL,
-			item.Description,
 			item.Views,
 			item.Likes,
 			item.Comments,
@@ -73,6 +72,7 @@ func (s *Service) InsertData(spreadsheetID, sheetName string, data []*models.Res
 			item.Virality,
 			item.ParsingDate,
 			item.PublishDate,
+			item.Description,
 		}
 		values = append(values, rowValues)
 	}
@@ -110,7 +110,6 @@ func (s *Service) InsertGroupsData(spreadsheetID string, sheetName string, data 
 		rowValues := []interface{}{
 			item.GroupUrl,
 			item.URL,
-			item.Description,
 			item.Views,
 			item.Likes,
 			item.Comments,
@@ -119,6 +118,7 @@ func (s *Service) InsertGroupsData(spreadsheetID string, sheetName string, data 
 			item.Virality,
 			item.ParsingDate,
 			item.PublishDate,
+			item.Description,
 		}
 		values = append(values, rowValues)
 	}
