@@ -1,4 +1,4 @@
-package google_sheet
+package search_url
 
 import (
 	"errors"
@@ -51,7 +51,7 @@ func (s *UrlsService) FindUrls(isSelected bool, parsingTypes []models.ParsingTyp
 	return s.GetUrls(spreadsheetID, sheetName, columnsPositions, parsingTypes)
 }
 
-func (s *UrlsService) GroupsUrls(
+func (s *UrlsService) AccountUrls(
 	isSelected bool,
 	sheetName, spreadsheetID string,
 ) ([]*models.UrlInfo, error) {
@@ -66,7 +66,7 @@ func (s *UrlsService) GroupsUrls(
 		columnsPositions.CheckboxColumnIndex = -1
 	}
 
-	return s.GetUrls(spreadsheetID, sheetName, columnsPositions, []models.ParsingType{models.VK})
+	return s.GetUrls(spreadsheetID, sheetName, columnsPositions, []models.ParsingType{models.VKParsingType, models.InstagramParsingType})
 }
 
 func (s *UrlsService) findColumns(spreadsheetID, sheetName, urlWord string) (*models.ColumnPositions, error) {
@@ -252,7 +252,7 @@ func (s *UrlsService) GetUrls(
 		}
 	}
 
-	s.log.Info(fmt.Sprintf("Найдено %d URL", len(urls)))
+	s.log.Info("Find urls", slog.Int("count", len(urls)))
 	return urls, nil
 }
 

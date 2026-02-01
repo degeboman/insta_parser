@@ -1,4 +1,4 @@
-package google_sheet
+package progress
 
 import (
 	"fmt"
@@ -10,23 +10,19 @@ import (
 	"google.golang.org/api/sheets/v4"
 )
 
-const (
-	ProgressHeaderRow = 1
-)
+const headerRow = 1
 
-type ProgressTracker struct {
+type Tracker struct {
 	sheetsService *sheets.Service
 }
 
-func NewProgressTracker(sheetsService *sheets.Service) *ProgressTracker {
-	pt := &ProgressTracker{
+func NewProgressTracker(sheetsService *sheets.Service) *Tracker {
+	return &Tracker{
 		sheetsService: sheetsService,
 	}
-
-	return pt
 }
 
-func (pt *ProgressTracker) EnsureProgressSheet(spreadsheetID string) error {
+func (pt *Tracker) EnsureProgressSheet(spreadsheetID string) error {
 	// Получаем информацию о таблице
 	spreadsheet, err := pt.sheetsService.Spreadsheets.Get(spreadsheetID).Do()
 	if err != nil {
@@ -70,14 +66,14 @@ func (pt *ProgressTracker) EnsureProgressSheet(spreadsheetID string) error {
 	return nil
 }
 
-func (pt *ProgressTracker) writeHeaders(spreadsheetID string) error {
+func (pt *Tracker) writeHeaders(spreadsheetID string) error {
 	headers := []interface{}{"Начало парсинга", "Всего ссылок", "Обработано", "Конец парсинга"}
 
 	valueRange := &sheets.ValueRange{
 		Values: [][]interface{}{headers},
 	}
 
-	rangeStr := fmt.Sprintf("%s!A%d:D%d", constants.ProgressTable, ProgressHeaderRow, ProgressHeaderRow)
+	rangeStr := fmt.Sprintf("%s!A%d:D%d", constants.ProgressTable, headerRow, headerRow)
 	_, err := pt.sheetsService.Spreadsheets.Values.Update(
 		spreadsheetID,
 		rangeStr,
@@ -87,7 +83,7 @@ func (pt *ProgressTracker) writeHeaders(spreadsheetID string) error {
 	return err
 }
 
-func (pt *ProgressTracker) StartParsing(spreadsheetID string, totalURLs int) (int, error) {
+func (pt *Tracker) StartParsing(spreadsheetID string, totalURLs int) (int, error) {
 	moscow, err := time.LoadLocation("Europe/Moscow")
 	if err != nil {
 		log.Printf("Warning: could not load Moscow timezone, using local: %v", err)
@@ -115,7 +111,7 @@ func (pt *ProgressTracker) StartParsing(spreadsheetID string, totalURLs int) (in
 	return 2, nil // Возвращаем номер строки
 }
 
-func (pt *ProgressTracker) UpdateProgress(spreadsheetID string, row, progress int) error {
+func (pt *Tracker) UpdateProgress(spreadsheetID string, row, progress int) error {
 	valueRange := &sheets.ValueRange{
 		Values: [][]interface{}{{progress}},
 	}
@@ -130,7 +126,7 @@ func (pt *ProgressTracker) UpdateProgress(spreadsheetID string, row, progress in
 	return err
 }
 
-func (pt *ProgressTracker) FinishParsing(spreadsheetID string, row int) error {
+func (pt *Tracker) FinishParsing(spreadsheetID string, row int) error {
 	moscow, err := time.LoadLocation("Europe/Moscow")
 	if err != nil {
 		log.Printf("Warning: could not load Moscow timezone, using local: %v", err)

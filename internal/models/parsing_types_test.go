@@ -16,7 +16,7 @@ func TestIsAvailableByParsingType(t *testing.T) {
 			name: "case 1",
 			args: args{
 				url:          "https://www.instagram.com/reel/DOEGKscjAWx/?igsh=MXZibWx0N2Y5aHB3eA==",
-				parsingTypes: []ParsingType{Instagram},
+				parsingTypes: []ParsingType{InstagramParsingType},
 			},
 			want: true,
 		},
@@ -24,7 +24,7 @@ func TestIsAvailableByParsingType(t *testing.T) {
 			name: "case 2",
 			args: args{
 				url:          "https://www.instagram.com/p/DPQkbQXDULV/",
-				parsingTypes: []ParsingType{Instagram},
+				parsingTypes: []ParsingType{InstagramParsingType},
 			},
 			want: true,
 		},
@@ -32,7 +32,7 @@ func TestIsAvailableByParsingType(t *testing.T) {
 			name: "case 3",
 			args: args{
 				url:          "https://youtube.com/shorts/zg67vNdmoAw?si=8udy79rgqO6c6xCT",
-				parsingTypes: []ParsingType{Instagram},
+				parsingTypes: []ParsingType{InstagramParsingType},
 			},
 			want: false,
 		},
@@ -40,7 +40,7 @@ func TestIsAvailableByParsingType(t *testing.T) {
 			name: "case 4",
 			args: args{
 				url:          "https://vk.com/clip-235319600_456239017",
-				parsingTypes: []ParsingType{Instagram, VK},
+				parsingTypes: []ParsingType{InstagramParsingType, VKParsingType},
 			},
 			want: true,
 		},
@@ -48,7 +48,7 @@ func TestIsAvailableByParsingType(t *testing.T) {
 			name: "case 5",
 			args: args{
 				url:          "https://vk.com/clips-73430300?z=clip-73430300_456240003",
-				parsingTypes: []ParsingType{Instagram, VK},
+				parsingTypes: []ParsingType{InstagramParsingType, VKParsingType},
 			},
 			want: true,
 		},

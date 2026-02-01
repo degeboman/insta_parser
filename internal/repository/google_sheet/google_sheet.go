@@ -8,18 +8,19 @@ import (
 	"os"
 
 	"inst_parser/internal/config"
-	"inst_parser/internal/models"
 
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 )
 
-const (
-	credentialsPath = "credentials.json"
-)
+type Repository struct {
+	SheetsService *sheets.Service
+}
 
-type Credentials struct {
+const credentialsPath = "credentials.json"
+
+type credentials struct {
 	Type                    string `json:"type"`
 	ProjectID               string `json:"project_id"`
 	PrivateKeyID            string `json:"private_key_id"`
@@ -32,11 +33,8 @@ type Credentials struct {
 	ClientX509CertURL       string `json:"client_x509_cert_url"`
 	UniverseDomain          string `json:"universe_domain"`
 }
-type Service struct {
-	SheetsService *sheets.Service
-}
 
-func NewService(cfg config.GoogleDriveCredentials) *Service {
+func NewRepository(cfg config.GoogleDriveCredentials) *Repository {
 	if err := createCredentialsFile(cfg); err != nil {
 		log.Fatal(err)
 	}
@@ -46,97 +44,33 @@ func NewService(cfg config.GoogleDriveCredentials) *Service {
 		log.Fatal(err)
 	}
 
-	return &Service{
+	return &Repository{
 		SheetsService: srv,
 	}
 }
 
-func (s *Service) InsertData(spreadsheetID, sheetName string, data []*models.ResultRow) error {
+func (r *Repository) InsertData(
+	spreadsheetID,
+	sheetName,
+	rangeData string,
+	data [][]interface{},
+) error {
 	if data == nil {
 		return nil
 	}
 
-	values := make([][]interface{}, 0, len(data))
-
-	for _, item := range data {
-		if item == nil {
-			continue
-		}
-		rowValues := []interface{}{
-			item.URL,
-			item.Views,
-			item.Likes,
-			item.Comments,
-			item.Shares,
-			item.ER,
-			item.Virality,
-			item.ParsingDate,
-			item.PublishDate,
-			item.Description,
-		}
-		values = append(values, rowValues)
-	}
-
 	valueRange := &sheets.ValueRange{
-		Values: values,
+		Values: data,
 	}
 
-	rangeData := fmt.Sprintf("%s!A:I", sheetName)
-
-	_, err := s.SheetsService.Spreadsheets.Values.Append(
+	_, err := r.SheetsService.Spreadsheets.Values.Append(
 		spreadsheetID,
-		rangeData,
+		fmt.Sprintf("%s!%s", sheetName, rangeData),
 		valueRange,
 	).ValueInputOption("USER_ENTERED").Do()
 
 	if err != nil {
-		return fmt.Errorf("ошибка вставки данных: %v", err)
-	}
-
-	return nil
-}
-
-func (s *Service) InsertGroupsData(spreadsheetID string, sheetName string, data []*models.ClipInfo) error {
-	if data == nil {
-		return nil
-	}
-
-	values := make([][]interface{}, 0, len(data))
-
-	for _, item := range data {
-		if item == nil {
-			continue
-		}
-		rowValues := []interface{}{
-			item.GroupUrl,
-			item.URL,
-			item.Views,
-			item.Likes,
-			item.Comments,
-			item.Shares,
-			item.ER,
-			item.Virality,
-			item.ParsingDate,
-			item.PublishDate,
-			item.Description,
-		}
-		values = append(values, rowValues)
-	}
-
-	valueRange := &sheets.ValueRange{
-		Values: values,
-	}
-
-	rangeData := fmt.Sprintf("%s!A:I", sheetName)
-
-	_, err := s.SheetsService.Spreadsheets.Values.Append(
-		spreadsheetID,
-		rangeData,
-		valueRange,
-	).ValueInputOption("USER_ENTERED").Do()
-
-	if err != nil {
-		return fmt.Errorf("ошибка вставки данных: %v", err)
+		return fmt.Errorf("failed to insert data: %v", err)
 	}
 
 	return nil
@@ -170,7 +104,7 @@ func getSheetService() (*sheets.Service, error) {
 }
 
 func createCredentialsFile(cfg config.GoogleDriveCredentials) (err error) {
-	credentials := Credentials{
+	credentials := credentials{
 		Type:                    cfg.Type,
 		ProjectID:               cfg.GDProjectID,
 		PrivateKeyID:            cfg.PrivateKeyID,
