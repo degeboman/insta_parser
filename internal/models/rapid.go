@@ -1,5 +1,13 @@
 package models
 
+import (
+	"fmt"
+	"log"
+	"time"
+
+	"inst_parser/internal/utils"
+)
+
 type (
 	InstagramItem struct {
 		Code      string `json:"code"`
@@ -83,4 +91,142 @@ type InstagramAPIResponse struct {
 type InstagramAPIErrorResponse struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
+}
+
+// GetInstagramReelsAPIResponse - основной ответ API
+type GetInstagramReelsAPIResponse struct {
+	Status  string             `json:"status"`
+	Message string             `json:"message,omitempty"`
+	Data    InstagramReelsData `json:"data"`
+}
+
+// InstagramReelsData - данные с reels
+type InstagramReelsData struct {
+	Items      []InstagramReelItem `json:"items"`
+	PagingInfo InstagramPagingInfo `json:"paging_info"`
+}
+
+// InstagramPagingInfo - информация о пагинации
+type InstagramPagingInfo struct {
+	MaxID         string `json:"max_id"`
+	MoreAvailable bool   `json:"more_available"`
+}
+
+// InstagramReelItem - информация об одном reel
+type InstagramReelItem struct {
+	Media InstagramMedia `json:"media"`
+}
+
+type InstagramMedia struct {
+	TakenAt       int64             `json:"taken_at"`
+	PK            string            `json:"pk"`
+	ID            string            `json:"id"`
+	MediaType     int               `json:"media_type"`
+	Code          string            `json:"code"`
+	Caption       *InstagramCaption `json:"caption"`
+	PlayCount     int               `json:"play_count"`
+	LikeCount     int               `json:"like_count"`
+	CommentCount  int               `json:"comment_count"`
+	ReshareCount  int               `json:"reshare_count"`
+	IgPlayCount   int               `json:"ig_play_count"`
+	VideoDuration float64           `json:"video_duration"`
+	HasAudio      bool              `json:"has_audio"`
+}
+
+type InstagramCaption struct {
+	Text string `json:"text"`
+}
+
+// InstagramReelInfo - обработанная информация о reel
+type InstagramReelInfo struct {
+	AccountURL  string
+	Views       int
+	Likes       int
+	Comments    int
+	Shares      int
+	GroupUrl    string
+	URL         string
+	Description string
+	ER          string
+	Virality    string
+	ParsingDate string
+	PublishDate string
+	Date        time.Time
+}
+
+// ProcessInstagramReelResponse - конвертирует API response в вашу модель
+func ProcessInstagramReelResponse(apiReel *InstagramMedia, accountURL string) *InstagramReelInfo {
+	// Получаем значения с проверкой на нулевые значения
+	likes := apiReel.LikeCount
+	comments := apiReel.CommentCount
+	shares := apiReel.ReshareCount
+	views := apiReel.IgPlayCount
+
+	// Форматируем дату публикации
+	publishDate := ""
+	parsingDate := ""
+	if apiReel.TakenAt > 0 {
+		// Конвертируем Unix timestamp в time.Time
+		pubTime := time.Unix(int64(apiReel.TakenAt), 0)
+
+		// Устанавливаем временную зону Москвы
+		moscow, err := time.LoadLocation("Europe/Moscow")
+		if err != nil {
+			log.Printf("Warning: could not load Moscow timezone, using local: %v", err)
+			moscow = time.Local
+		}
+
+		// Форматируем дату в нужный формат
+		pubTimeInMoscow := pubTime.In(moscow)
+		publishDate = pubTimeInMoscow.Format("02.01.2006 15:04")
+		parsingDate = time.Now().In(moscow).Format("02.01.2006 15:04")
+	}
+
+	// Создаем строку результата
+	return &InstagramReelInfo{
+		URL:         fmt.Sprintf("https://www.instagram.com/reel/%s/", apiReel.Code),
+		AccountURL:  accountURL,
+		Description: apiReel.Caption.Text,
+		Views:       int(views),
+		Likes:       likes,
+		Comments:    comments,
+		Shares:      shares,
+		ER:          utils.GetER(int64(likes), int64(shares), int64(comments), int64(views)),
+		Virality:    utils.GetVirality(int64(shares), int64(views)),
+		ParsingDate: parsingDate,
+		PublishDate: publishDate,
+	}
+}
+
+// EmptyReelInfo - возвращает пустую информацию при ошибке
+func EmptyReelInfo(accountURL string) *InstagramReelInfo {
+	return &InstagramReelInfo{
+		AccountURL: accountURL,
+	}
+}
+
+func InstagramReelInfoToInterface(data []*InstagramReelInfo) [][]interface{} {
+	values := make([][]interface{}, 0, len(data))
+
+	for i := range data {
+		if data == nil {
+			continue
+		}
+		rowValues := []interface{}{
+			data[i].AccountURL,
+			data[i].URL,
+			data[i].Views,
+			data[i].Likes,
+			data[i].Comments,
+			data[i].Shares,
+			data[i].ER,
+			data[i].Virality,
+			data[i].ParsingDate,
+			data[i].PublishDate,
+			data[i].Description,
+		}
+		values = append(values, rowValues)
+	}
+
+	return values
 }

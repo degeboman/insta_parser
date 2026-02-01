@@ -8,6 +8,7 @@ const (
 
 // rapid api urls
 const (
-	RapidInstagramGetReelInfo   = "https://real-time-instagram-scraper-api1.p.rapidapi.com/v1/media_info"
-	RapidVkGetClipsInfoForGroup = "https://vk-scraper.p.rapidapi.com/api/v1"
+	RapidInstagramGetReelInfo            = "https://real-time-instagram-scraper-api1.p.rapidapi.com/v1/media_info"
+	RapidVkGetClipsInfoForGroup          = "https://vk-scraper.p.rapidapi.com/api/v1"
+	RapidInstagramGetReelsInfoForAccount = "https://real-time-instagram-scraper-api1.p.rapidapi.com/v1/user_reels"
 )

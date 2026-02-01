@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -32,6 +33,104 @@ func NewRepository(
 			Timeout: 10 * time.Second,
 		},
 	}
+}
+
+func (r *Repository) GetInstagramReelsInfoForAccount(info *models.AccountInfo) ([]*models.InstagramReelInfo, error) {
+	r.processingInstagramMu.Lock()
+	defer r.processingInstagramMu.Unlock()
+
+	reels := make([]*models.InstagramReelInfo, 0, info.Count)
+	var maxID string
+
+	for len(reels) < info.Count {
+		apiResp, err := r.getReelsForUser(
+			getInstagramReelsEndpoint(info.Identification, maxID),
+		)
+		if err != nil {
+			return []*models.InstagramReelInfo{models.EmptyReelInfo(info.AccountUrl)},
+				fmt.Errorf("failed to fetch reels: %w", err)
+		}
+
+		// Если reels больше нет, выходим
+		if len(apiResp.Data.Items) == 0 {
+			break
+		}
+
+		// Конвертируем и добавляем reels
+		for _, apiReel := range apiResp.Data.Items {
+			if len(reels) >= info.Count {
+				break
+			}
+
+			reels = append(reels, models.ProcessInstagramReelResponse(&apiReel.Media, info.AccountUrl))
+		}
+
+		// Обновляем max_id для следующего запроса
+		maxID = apiResp.Data.PagingInfo.MaxID
+		if !apiResp.Data.PagingInfo.MoreAvailable {
+			break
+		}
+
+		// Задержка между запросами
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	return reels, nil
+}
+
+func (r *Repository) getReelsForUser(endpoint string) (*models.GetInstagramReelsAPIResponse, error) {
+	if r.rapidAPIKey == "" {
+		return nil, fmt.Errorf("RAPIDAPI_KEY is not set")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		endpoint,
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Устанавливаем заголовки
+	req.Header.Set("x-rapidapi-key", r.rapidAPIKey)
+	req.Header.Set("x-rapidapi-host", "real-time-instagram-scraper-api1.p.rapidapi.com")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var i interface{}
+	var apiResp models.GetInstagramReelsAPIResponse
+	if err := json.Unmarshal(body, &i); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	// Проверяем статус ответа (адаптируйте под вашу структуру)
+	if apiResp.Status != "ok" {
+		return nil, fmt.Errorf("API error: %s", apiResp.Message)
+	}
+
+	return &apiResp, nil
 }
 
 func (r *Repository) GetVKClipsInfoForGroup(info *models.AccountInfo) ([]*models.VKClipInfo, error) {
@@ -186,4 +285,15 @@ func getUserClipsEndpoint(identification, cursor string) string {
 	}
 
 	return endpoint
+}
+
+func getInstagramReelsEndpoint(username string, maxID string) string {
+	params := url.Values{}
+	params.Add("username_or_id", username)
+
+	if maxID != "" {
+		params.Add("max_id", maxID)
+	}
+
+	return fmt.Sprintf("%s?%s", constants.RapidInstagramGetReelsInfoForAccount, params.Encode())
 }

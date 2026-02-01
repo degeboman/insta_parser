@@ -1,4 +1,4 @@
-package google_sheet
+package search_url
 
 import (
 	"inst_parser/internal/models"

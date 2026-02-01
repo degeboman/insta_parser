@@ -9,12 +9,13 @@ import (
 )
 
 type Usecase struct {
-	logger              *slog.Logger
-	accountUrlsProvider AccountUrlsProvider
-	vkGroupIDProvider   VKGroupIDProvider
-	trackerService      TrackerService
-	vkClipInfoProvider  VKClipInfoProvider
-	dataInserter        DataInserter
+	logger                          *slog.Logger
+	accountUrlsProvider             AccountUrlsProvider
+	vkGroupIDProvider               VKGroupIDProvider
+	trackerService                  TrackerService
+	vkClipInfoProvider              VKClipInfoProvider
+	dataInserter                    DataInserter
+	instagramGetReelsInfoForAccount InstagramGetReelsInfoForAccount
 }
 
 func NewUsecase(
@@ -24,14 +25,16 @@ func NewUsecase(
 	trackerService TrackerService,
 	vkClipInfoProvider VKClipInfoProvider,
 	dataInserter DataInserter,
+	instagramGetReelsInfoForAccount InstagramGetReelsInfoForAccount,
 ) *Usecase {
 	return &Usecase{
-		logger:              log,
-		accountUrlsProvider: accountUrlsProvider,
-		vkGroupIDProvider:   vkGroupIDProvider,
-		trackerService:      trackerService,
-		vkClipInfoProvider:  vkClipInfoProvider,
-		dataInserter:        dataInserter,
+		logger:                          log,
+		accountUrlsProvider:             accountUrlsProvider,
+		vkGroupIDProvider:               vkGroupIDProvider,
+		trackerService:                  trackerService,
+		vkClipInfoProvider:              vkClipInfoProvider,
+		dataInserter:                    dataInserter,
+		instagramGetReelsInfoForAccount: instagramGetReelsInfoForAccount,
 	}
 }
 
@@ -49,6 +52,10 @@ type (
 
 	VKClipInfoProvider interface {
 		GetVKClipsInfoForGroup(info *models.AccountInfo) ([]*models.VKClipInfo, error)
+	}
+
+	InstagramGetReelsInfoForAccount interface {
+		GetInstagramReelsInfoForAccount(info *models.AccountInfo) ([]*models.InstagramReelInfo, error)
 	}
 
 	TrackerService interface {
@@ -159,6 +166,18 @@ func (u *Usecase) ParseAccount(
 					slog.String("err", processVkGroupErr.Error()),
 				)
 			}
+		case models.InstagramParsingType:
+			if processInstagramReelErr := u.processInstagramAccount(
+				spreadsheetID,
+				accountName,
+				accountUrl,
+			); processInstagramReelErr != nil {
+				u.logger.Error("Failed to get reel info",
+					slog.String("spreadsheet_id", spreadsheetID),
+					slog.String("sheet_name", sheetName),
+					slog.String("err", processInstagramReelErr.Error()),
+				)
+			}
 		}
 
 		processedCount++
@@ -192,6 +211,29 @@ func (u *Usecase) processVKGroup(
 		constants.VkGroupsDataTable,
 		"A:I",
 		models.VKClipsInfoToInterface(result),
+	); insertErr != nil {
+		return fmt.Errorf("failed to insert groups data: %w", insertErr)
+	}
+
+	return nil
+}
+
+func (u *Usecase) processInstagramAccount(
+	spreadsheetID, accountName string,
+	accountUrl *models.UrlInfo,
+) error {
+	result, getClipsInfoErr := u.instagramGetReelsInfoForAccount.GetInstagramReelsInfoForAccount(
+		getAccountInfo(accountName, models.InstagramParsingType, accountUrl),
+	)
+	if getClipsInfoErr != nil {
+		return fmt.Errorf("failed to get clips info: %w", getClipsInfoErr)
+	}
+
+	if insertErr := u.dataInserter.InsertData(
+		spreadsheetID,
+		constants.VkGroupsDataTable,
+		"A:I",
+		models.InstagramReelInfoToInterface(result),
 	); insertErr != nil {
 		return fmt.Errorf("failed to insert groups data: %w", insertErr)
 	}

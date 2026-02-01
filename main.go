@@ -6,7 +6,6 @@ import (
 
 	"inst_parser/internal/config"
 	"inst_parser/internal/constants"
-	google_sheet2 "inst_parser/internal/google_sheet"
 	"inst_parser/internal/handlers"
 	"inst_parser/internal/logger"
 	"inst_parser/internal/repository/google_sheet"
@@ -15,6 +14,7 @@ import (
 	"inst_parser/internal/repository/vk"
 	"inst_parser/internal/usecase/parsing_account"
 	"inst_parser/internal/usecase/parsing_urls"
+	"inst_parser/internal/usecase/search_url"
 )
 
 func main() {
@@ -25,7 +25,7 @@ func main() {
 
 	googleSheetRepo := google_sheet.NewRepository(cfg.GoogleDriveCredentials)
 	progressSrv := progress.NewProgressTracker(googleSheetRepo.SheetsService)
-	urlSrv := google_sheet2.NewUrlsService(l, googleSheetRepo.SheetsService)
+	urlSrv := search_url.NewUrlsService(l, googleSheetRepo.SheetsService)
 	rapidRepo := rapid.NewRepository(cfg.Rapid.ApiKey, l)
 	vkRepo := vk.NewRepository(l, cfg.VK.Token)
 
@@ -45,6 +45,7 @@ func main() {
 		progressSrv,
 		rapidRepo,
 		googleSheetRepo,
+		rapidRepo,
 	)
 
 	parsingUrlsHandler := handlers.NewParsingUrlsHandler(l, parsingUrlsUsecase)

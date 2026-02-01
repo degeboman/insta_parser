@@ -1,4 +1,4 @@
-package google_sheet
+package search_url
 
 import (
 	"errors"
@@ -66,7 +66,7 @@ func (s *UrlsService) AccountUrls(
 		columnsPositions.CheckboxColumnIndex = -1
 	}
 
-	return s.GetUrls(spreadsheetID, sheetName, columnsPositions, []models.ParsingType{models.VKParsingType})
+	return s.GetUrls(spreadsheetID, sheetName, columnsPositions, []models.ParsingType{models.VKParsingType, models.InstagramParsingType})
 }
 
 func (s *UrlsService) findColumns(spreadsheetID, sheetName, urlWord string) (*models.ColumnPositions, error) {
