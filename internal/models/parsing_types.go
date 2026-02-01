@@ -5,15 +5,13 @@ import "strings"
 type ParsingType string
 
 const (
-	Instagram ParsingType = "instagram"
-	VK        ParsingType = "vk"
-	Unknown   ParsingType = "unknown"
+	InstagramParsingType ParsingType = "instagram"
+	VKParsingType        ParsingType = "vk"
+	YoutubeParsingType   ParsingType = "youtube"
+	TiktokParsingType    ParsingType = "tiktok"
+	TelegramParsingType  ParsingType = "telegram"
+	UnknownParsingType   ParsingType = "unknown"
 )
-
-var parsingTypes = map[ParsingType]struct{}{
-	Instagram: struct{}{},
-	VK:        struct{}{},
-}
 
 func IsAvailableByParsingType(url string, parsingTypes []ParsingType) bool {
 	for _, parsingType := range parsingTypes {
@@ -30,17 +28,17 @@ func ParsingTypeByUrl(url string) ParsingType {
 
 	// Проверяем, содержит ли URL домен vk.com
 	if strings.Contains(urlLower, "vk.com") {
-		return VK
+		return VKParsingType
 	}
 
 	if strings.Contains(urlLower, "vk.ru") {
-		return VK
+		return VKParsingType
 	}
 
 	// Проверяем, содержит ли URL домен instagram.com
 	if strings.Contains(urlLower, "instagram.com") {
-		return Instagram
+		return InstagramParsingType
 	}
 
-	return Unknown
+	return UnknownParsingType
 }

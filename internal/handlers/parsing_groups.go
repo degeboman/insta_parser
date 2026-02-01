@@ -5,36 +5,37 @@ import (
 	"log/slog"
 	"net/http"
 
-	"inst_parser/internal/usecase/parsing_urls"
+	"inst_parser/internal/usecase/parsing_account"
 )
 
-type ParsingUrlsRequest struct {
-	SpreadsheetID string `json:"spreadsheet_id"`
-	SheetName     string `json:"sheet_name"`
-	IsSelected    bool   `json:"is_selected"`
-}
+type (
+	ParsingAccountRequest struct {
+		SpreadsheetID string `json:"spreadsheet_id"`
+		SheetName     string `json:"sheet_name"`
+		IsSelected    bool   `json:"is_selected"`
+	}
+	ParsingAccountResponse struct {
+		Success bool   `json:"success"`
+		Message string `json:"message"`
+	}
+)
 
-type ParsingUrlsResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-}
-
-type ParsingUrlsHandler struct {
+type ParsingAccount struct {
 	logger  *slog.Logger
-	usecase *parsing_urls.Usecase
+	usecase *parsing_account.Usecase
 }
 
-func NewParsingUrlsHandler(
-	logger *slog.Logger,
-	usecase *parsing_urls.Usecase,
-) *ParsingUrlsHandler {
-	return &ParsingUrlsHandler{
-		logger:  logger,
+func NewParsingVkGroupsHandler(
+	log *slog.Logger,
+	usecase *parsing_account.Usecase,
+) *ParsingAccount {
+	return &ParsingAccount{
+		logger:  log,
 		usecase: usecase,
 	}
 }
 
-func (h *ParsingUrlsHandler) ParsingUrls(w http.ResponseWriter, r *http.Request) {
+func (h *ParsingAccount) ParsingAccount(w http.ResponseWriter, r *http.Request) {
 	// Разрешаем только POST метод
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -42,10 +43,10 @@ func (h *ParsingUrlsHandler) ParsingUrls(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Парсим JSON из тела запроса
-	var req ParsingUrlsRequest
+	var req ParsingAccountRequest
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&req); err != nil {
-		resp := ParsingUrlsResponse{
+		resp := ParsingAccountResponse{
 			Success: false,
 			Message: "Invalid JSON format",
 		}
@@ -56,7 +57,7 @@ func (h *ParsingUrlsHandler) ParsingUrls(w http.ResponseWriter, r *http.Request)
 
 	// Проверяем, что tablename передан
 	if req.SpreadsheetID == "" {
-		resp := ParsingUrlsResponse{
+		resp := ParsingAccountResponse{
 			Success: false,
 			Message: "spreadsheet_id is required",
 		}
@@ -66,7 +67,7 @@ func (h *ParsingUrlsHandler) ParsingUrls(w http.ResponseWriter, r *http.Request)
 	}
 
 	if req.SheetName == "" {
-		resp := ParsingUrlsResponse{
+		resp := ParsingAccountResponse{
 			Success: false,
 			Message: "sheetname is required",
 		}
@@ -75,16 +76,16 @@ func (h *ParsingUrlsHandler) ParsingUrls(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	go h.usecase.ParseUrls(
+	go h.usecase.ParseAccount(
 		req.IsSelected,
 		req.SheetName,
 		req.SpreadsheetID,
 	)
 
 	// Возвращаем успешный ответ
-	resp := ParsingUrlsResponse{
+	resp := ParsingAccountResponse{
 		Success: true,
-		Message: "ParsingUrlsRequest received successfully",
+		Message: "ParsingAccountRequest received successfully",
 	}
 
 	w.WriteHeader(http.StatusOK)

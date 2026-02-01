@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"inst_parser/internal/utils"
 	"io"
 	"log"
 	"log/slog"
@@ -17,7 +18,7 @@ import (
 
 type (
 	vkParser interface {
-		GetClipInfoByURL(ctx context.Context, url string) (*models.ClipInfo, error)
+		GetClipInfoByURL(ctx context.Context, url string) (*models.VKClipInfo, error)
 	}
 
 	trackerService interface {
@@ -110,10 +111,10 @@ func (s *Service) processBatch(urls []*models.UrlInfo) []*models.ResultRow {
 	for _, url := range urls {
 		var resultRow *models.ResultRow
 		switch models.ParsingTypeByUrl(url.URL) {
-		case models.Instagram:
+		case models.InstagramParsingType:
 			time.Sleep(550 * time.Millisecond)
 			resultRow = s.parseInstagram(url.URL)
-		case models.VK:
+		case models.VKParsingType:
 			time.Sleep(250 * time.Millisecond)
 			resultRow = s.parseVK(url.URL)
 		default:
@@ -173,8 +174,8 @@ func (s *Service) parseVK(url string) *models.ResultRow {
 		Likes:       int64(result.Likes),
 		Comments:    int64(result.Comments),
 		Shares:      int64(result.Shares),
-		ER:          getER(int64(result.Likes), int64(result.Shares), int64(result.Comments), int64(result.Views)),
-		Virality:    getVirality(int64(result.Shares), int64(result.Views)),
+		ER:          utils.GetER(int64(result.Likes), int64(result.Shares), int64(result.Comments), int64(result.Views)),
+		Virality:    utils.GetVirality(int64(result.Shares), int64(result.Views)),
 		PublishDate: publishDate,
 		ParsingDate: parsingDate,
 	}
@@ -182,22 +183,22 @@ func (s *Service) parseVK(url string) *models.ResultRow {
 	return &resultRow
 }
 
-func (s *Service) GetClipsInfoByOwnerID(groupInfo *models.GroupInfoPair) ([]*models.ClipInfo, error) {
+func (s *Service) GetClipsInfoByOwnerID(groupInfo *models.AccountInfo) ([]*models.VKClipInfo, error) {
 	s.processingInstagramMu.Lock()
 	defer s.processingInstagramMu.Unlock()
 
-	clips := make([]*models.ClipInfo, 0, groupInfo.Count)
+	clips := make([]*models.VKClipInfo, 0, groupInfo.Count)
 	cursor := ""
 
 	for len(clips) < groupInfo.Count {
-		endpoint := fmt.Sprintf("/users/clips?owner_id=chplk:%s", groupInfo.OwnerID)
+		endpoint := fmt.Sprintf("/users/clips?owner_id=chplk:%s", groupInfo.Identification)
 		if cursor != "" {
 			endpoint += fmt.Sprintf("&cursor=%s", cursor)
 		}
 
 		apiResp, err := s.makeAPIRequest(endpoint)
 		if err != nil {
-			return []*models.ClipInfo{models.EmptyClipInfo(groupInfo.GroupUrl)},
+			return []*models.VKClipInfo{models.EmptyClipInfo(groupInfo.AccountUrl)},
 				fmt.Errorf("failed to fetch clips: %w", err)
 		}
 
@@ -212,7 +213,7 @@ func (s *Service) GetClipsInfoByOwnerID(groupInfo *models.GroupInfoPair) ([]*mod
 				break
 			}
 
-			clips = append(clips, processVkGroupClipResponse(apiClip, groupInfo.GroupUrl))
+			clips = append(clips, processVkGroupClipResponse(apiClip, groupInfo.AccountUrl))
 		}
 
 		// Обновляем курсор для следующего запроса
@@ -228,7 +229,7 @@ func (s *Service) GetClipsInfoByOwnerID(groupInfo *models.GroupInfoPair) ([]*mod
 	return clips, nil
 }
 
-func (s *Service) makeAPIRequest(endpoint string) (*models.APIResponse, error) {
+func (s *Service) makeAPIRequest(endpoint string) (*models.GetClipsForGroupAPIResponse, error) {
 	const baseURL = "https://vk-scraper.p.rapidapi.com/api/v1"
 
 	if s.rapidAPIKey == "" {
@@ -263,7 +264,7 @@ func (s *Service) makeAPIRequest(endpoint string) (*models.APIResponse, error) {
 		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
-	var apiResp models.APIResponse
+	var apiResp models.GetClipsForGroupAPIResponse
 	if err := json.Unmarshal(body, &apiResp); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
@@ -324,118 +325,4 @@ func (s *Service) fetchInstagramDataSafe(reelURL string) (*models.InstagramAPIRe
 	}
 
 	return &data, nil
-}
-
-func processInstagramResponse(apiResponse *models.InstagramAPIResponse, url string) (*models.ResultRow, error) {
-	//Проверяем наличие items
-	if len(apiResponse.Data.Items) == 0 {
-		return nil, fmt.Errorf("no items found in API response")
-	}
-
-	item := apiResponse.Data.Items[0]
-
-	// Получаем значения с проверкой на нулевые значения
-	likes := item.LikeCount
-	comments := item.CommentCount
-	shares := item.ReshareCount
-	views := item.IgPlayCount
-
-	// Форматируем дату публикации
-	publishDate := ""
-	parsingDate := ""
-	if item.TakenAt > 0 {
-		// Конвертируем Unix timestamp в time.Time
-		pubTime := time.Unix(item.TakenAt, 0)
-
-		// Устанавливаем временную зону Москвы
-		moscow, err := time.LoadLocation("Europe/Moscow")
-		if err != nil {
-			log.Printf("Warning: could not load Moscow timezone, using local: %v", err)
-			moscow = time.Local
-		}
-
-		// Форматируем дату в нужный формат
-		pubTimeInMoscow := pubTime.In(moscow)
-		publishDate = pubTimeInMoscow.Format("02.01.2006 15:04")
-		parsingDate = time.Now().In(moscow).Format("02.01.2006 15:04")
-	}
-
-	if shares == nil {
-		var nilVal int64 = 0
-		shares = &nilVal
-	}
-
-	// Создаем строку результата
-	result := &models.ResultRow{
-		URL:         url,
-		Description: item.Caption.Text,
-		Views:       views,
-		Likes:       likes,
-		Comments:    comments,
-		Shares:      *shares,
-		ER:          getER(likes, *shares, comments, views),
-		Virality:    getVirality(*shares, views),
-		ParsingDate: parsingDate,
-		PublishDate: publishDate,
-	}
-
-	return result, nil
-}
-
-func processVkGroupClipResponse(apiResponse models.APIVKClip, url string) *models.ClipInfo {
-	// Получаем значения с проверкой на нулевые значения
-	likes := apiResponse.Likes.Count
-	comments := apiResponse.Comments
-	shares := apiResponse.Reposts.Count
-	views := apiResponse.Views
-
-	// Форматируем дату публикации
-	publishDate := ""
-	parsingDate := ""
-	if apiResponse.Date > 0 {
-		// Конвертируем Unix timestamp в time.Time
-		pubTime := time.Unix(int64(apiResponse.Date), 0)
-
-		// Устанавливаем временную зону Москвы
-		moscow, err := time.LoadLocation("Europe/Moscow")
-		if err != nil {
-			log.Printf("Warning: could not load Moscow timezone, using local: %v", err)
-			moscow = time.Local
-		}
-
-		// Форматируем дату в нужный формат
-		pubTimeInMoscow := pubTime.In(moscow)
-		publishDate = pubTimeInMoscow.Format("02.01.2006 15:04")
-		parsingDate = time.Now().In(moscow).Format("02.01.2006 15:04")
-	}
-
-	// Создаем строку результата
-	return &models.ClipInfo{
-		GroupUrl:    url,
-		Description: apiResponse.Description,
-		Views:       views,
-		Likes:       likes,
-		Comments:    comments,
-		Shares:      shares,
-		ER:          getER(int64(likes), int64(shares), int64(comments), int64(views)),
-		Virality:    getVirality(int64(shares), int64(views)),
-		ParsingDate: parsingDate,
-		PublishDate: publishDate,
-		URL:         fmt.Sprintf("https://vk.com/clip%d_%d", apiResponse.OwnerID, apiResponse.ID),
-	}
-}
-
-func getER(likes, shares, comments, views int64) string {
-	if likes+shares+comments <= 0 || views <= 0 {
-		return "0"
-	}
-
-	return fmt.Sprintf("%.2f%%", float64(likes+shares+comments)/float64(views)*100)
-}
-
-func getVirality(shares, views int64) string {
-	if shares <= 0 || views <= 0 {
-		return "0"
-	}
-	return fmt.Sprintf("%.2f%%", float64(shares)/float64(views)*100)
 }

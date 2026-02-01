@@ -200,7 +200,7 @@ func TestUrlsService_GetUrls(t *testing.T) {
 					URLColumnIndex:      1,
 					CheckboxColumnIndex: 2,
 				},
-				parsingTypes: []models.ParsingType{models.VK},
+				parsingTypes: []models.ParsingType{models.VKParsingType},
 			},
 			want:    []string{},
 			wantErr: false,
@@ -255,7 +255,7 @@ func TestUrlsService_FindUrls(t *testing.T) {
 			},
 			args: args{
 				isSelected:   true,
-				parsingTypes: []models.ParsingType{models.Instagram},
+				parsingTypes: []models.ParsingType{models.InstagramParsingType},
 				sheetName:    "данные",
 			},
 		},

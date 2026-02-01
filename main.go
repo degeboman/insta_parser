@@ -5,11 +5,16 @@ import (
 	"net/http"
 
 	"inst_parser/internal/config"
-	"inst_parser/internal/google_sheet"
+	"inst_parser/internal/constants"
+	google_sheet2 "inst_parser/internal/google_sheet"
 	"inst_parser/internal/handlers"
 	"inst_parser/internal/logger"
-	"inst_parser/internal/rapid"
-	"inst_parser/internal/vk"
+	"inst_parser/internal/repository/google_sheet"
+	"inst_parser/internal/repository/progress"
+	"inst_parser/internal/repository/rapid"
+	"inst_parser/internal/repository/vk"
+	"inst_parser/internal/usecase/parsing_account"
+	"inst_parser/internal/usecase/parsing_urls"
 )
 
 func main() {
@@ -18,17 +23,35 @@ func main() {
 
 	l.Info("Starting server")
 
-	vksrv := vk.NewVKService(l, cfg.VK.Token)
-	sheetSrv := google_sheet.NewService(cfg.GoogleDriveCredentials)
-	tracker := google_sheet.NewProgressTracker(sheetSrv.SheetsService)
-	rapidSrv := rapid.NewService(cfg.Rapid.ApiKey, l, sheetSrv, vksrv, tracker)
-	urlSrv := google_sheet.NewUrlsService(l, sheetSrv.SheetsService)
+	googleSheetRepo := google_sheet.NewRepository(cfg.GoogleDriveCredentials)
+	progressSrv := progress.NewProgressTracker(googleSheetRepo.SheetsService)
+	urlSrv := google_sheet2.NewUrlsService(l, googleSheetRepo.SheetsService)
+	rapidRepo := rapid.NewRepository(cfg.Rapid.ApiKey, l)
+	vkRepo := vk.NewRepository(l, cfg.VK.Token)
 
-	parsingUrlsHandler := handlers.NewParsingUrlsHandler(l, rapidSrv, sheetSrv, urlSrv)
-	parsingVkGroupsHandler := handlers.NewParsingVkGroupsHandler(l, sheetSrv, urlSrv, vksrv, rapidSrv, tracker)
+	parsingUrlsUsecase := parsing_urls.NewUsecase(
+		l,
+		urlSrv,
+		googleSheetRepo,
+		rapidRepo,
+		vkRepo,
+		progressSrv,
+	)
 
-	http.HandleFunc("/parsing2", parsingUrlsHandler.ParsingUrls)
-	http.HandleFunc("/parsing_vk_groups", parsingVkGroupsHandler.ParsingVkGroups)
+	parsingAccountUsecase := parsing_account.NewUsecase(
+		l,
+		urlSrv,
+		vkRepo,
+		progressSrv,
+		rapidRepo,
+		googleSheetRepo,
+	)
+
+	parsingUrlsHandler := handlers.NewParsingUrlsHandler(l, parsingUrlsUsecase)
+	parsingAccountHandler := handlers.NewParsingVkGroupsHandler(l, parsingAccountUsecase)
+
+	http.HandleFunc(constants.ParsingUrls, parsingUrlsHandler.ParsingUrls)
+	http.HandleFunc(constants.ParsingAccount, parsingAccountHandler.ParsingAccount)
 
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal("Server failed to start:", err)

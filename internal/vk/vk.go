@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"inst_parser/internal/models"
+	"inst_parser/internal/utils"
 
 	"github.com/SevereCloud/vksdk/v2/api"
 )
@@ -27,8 +28,8 @@ func NewVKService(logger *slog.Logger, accessToken string) *Service {
 }
 
 // GetClipInfoByURL получает информацию о клипе по URL
-func (s *Service) GetClipInfoByURL(ctx context.Context, url string) (*models.ClipInfo, error) {
-	ownerID, clipID, err := parseClipURL(url)
+func (s *Service) GetClipInfoByURL(ctx context.Context, url string) (*models.VKClipInfo, error) {
+	ownerID, clipID, err := utils.ParseVkClipURL(url)
 	if err != nil {
 		return nil, err
 	}
@@ -36,11 +37,11 @@ func (s *Service) GetClipInfoByURL(ctx context.Context, url string) (*models.Cli
 	return s.getClipInfo(ctx, ownerID, clipID)
 }
 
-func (s *Service) OwnerIDsByGroupsUrls(urls []*models.UrlInfo) ([]*models.GroupInfoPair, error) {
-	result := make([]*models.GroupInfoPair, len(urls))
+func (s *Service) OwnerIDsByGroupsUrls(urls []*models.UrlInfo) ([]*models.AccountInfo, error) {
+	result := make([]*models.AccountInfo, len(urls))
 
 	for i, url := range urls {
-		groupID, err := parseGroupURL(url.URL)
+		account, parsingType, err := utils.ParseSocialAccountURL(url.URL)
 		if err != nil {
 			s.logger.Error("failed to parse group url",
 				slog.String("url", url.URL),
@@ -76,10 +77,10 @@ func (s *Service) OwnerIDsByGroupsUrls(urls []*models.UrlInfo) ([]*models.GroupI
 			ownerID = -id // Для групп ID отрицательный
 		}
 
-		result[i] = &models.GroupInfoPair{
-			OwnerID:  strconv.Itoa(ownerID),
-			GroupUrl: url.URL,
-			Count:    url.Count,
+		result[i] = &models.AccountInfo{
+			Identification: strconv.Itoa(ownerID),
+			AccountUrl:     url.URL,
+			Count:          url.Count,
 		}
 	}
 
@@ -87,9 +88,9 @@ func (s *Service) OwnerIDsByGroupsUrls(urls []*models.UrlInfo) ([]*models.GroupI
 }
 
 // getClipInfo получает информацию о клипе по owner_id и clip_id
-func (s *Service) getClipInfo(ctx context.Context, ownerID, clipID int) (*models.ClipInfo, error) {
+func (s *Service) getClipInfo(ctx context.Context, ownerID, clipID int) (*models.VKClipInfo, error) {
 	// Используем метод video.get для получения информации о клипе
-	// Клипы в VK API обрабатываются как видео
+	// Клипы в VKParsingType API обрабатываются как видео
 	videos := fmt.Sprintf("%d_%d", ownerID, clipID)
 
 	params := api.Params{
@@ -131,7 +132,7 @@ func (s *Service) getClipInfo(ctx context.Context, ownerID, clipID int) (*models
 
 	item := response.Items[0]
 
-	clipInfo := &models.ClipInfo{
+	clipInfo := &models.VKClipInfo{
 		Description: item.Description,
 		OwnerID:     item.OwnerID,
 		ClipID:      item.ID,
@@ -143,41 +144,4 @@ func (s *Service) getClipInfo(ctx context.Context, ownerID, clipID int) (*models
 	}
 
 	return clipInfo, nil
-}
-
-// parseClipURL извлекает owner_id и clip_id из URL
-func parseClipURL(url string) (int, int, error) {
-	re := regexp.MustCompile(`clip(-?\d+)_(\d+)`)
-	matches := re.FindStringSubmatch(url)
-
-	if len(matches) != 3 {
-		return 0, 0, fmt.Errorf("invalid clip URL format")
-	}
-
-	ownerID, err := strconv.Atoi(matches[1])
-	if err != nil {
-		return 0, 0, err
-	}
-
-	clipID, err := strconv.Atoi(matches[2])
-	if err != nil {
-		return 0, 0, err
-	}
-
-	return ownerID, clipID, nil
-}
-
-func parseGroupURL(url string) (string, error) {
-	// Извлекаем всё после vk.com/
-	re := regexp.MustCompile(`vk\.com/([^/?#]+)`)
-	matches := re.FindStringSubmatch(url)
-
-	if len(matches) < 2 || matches[1] == "" {
-		return "", fmt.Errorf("invalid group URL format")
-	}
-
-	groupID := matches[1]
-
-	return groupID, nil
-
 }

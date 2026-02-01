@@ -1,0 +1,189 @@
+package rapid
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"sync"
+	"time"
+
+	"inst_parser/internal/constants"
+	"inst_parser/internal/models"
+)
+
+type Repository struct {
+	rapidAPIKey           string
+	logger                *slog.Logger
+	httpClient            *http.Client
+	processingInstagramMu sync.Mutex
+}
+
+func NewRepository(
+	rapidApiKey string,
+	log *slog.Logger,
+) *Repository {
+	return &Repository{
+		logger:      log,
+		rapidAPIKey: rapidApiKey,
+		httpClient: &http.Client{
+			Timeout: 10 * time.Second,
+		},
+	}
+}
+
+func (r *Repository) GetVKClipsInfoForGroup(info *models.AccountInfo) ([]*models.VKClipInfo, error) {
+	r.processingInstagramMu.Lock()
+	defer r.processingInstagramMu.Unlock()
+
+	clips := make([]*models.VKClipInfo, 0, info.Count)
+	var cursor string
+
+	for len(clips) < info.Count {
+		apiResp, err := r.getClipsInfoForGroup(
+			getUserClipsEndpoint(info.Identification, cursor),
+		)
+		if err != nil {
+			return []*models.VKClipInfo{models.EmptyClipInfo(info.AccountUrl)},
+				fmt.Errorf("failed to fetch clips: %w", err)
+		}
+
+		// Если клипов больше нет, выходим
+		if len(apiResp.Data.Clips) == 0 {
+			break
+		}
+
+		// Конвертируем и добавляем клипы
+		for _, apiClip := range apiResp.Data.Clips {
+			if len(clips) >= info.Count {
+				break
+			}
+
+			clips = append(clips, models.ProcessVkGroupClipResponse(apiClip, info.AccountUrl))
+		}
+
+		// Обновляем курсор для следующего запроса
+		cursor = apiResp.Data.Cursor
+		if cursor == "" {
+			break
+		}
+
+		// Задержка между запросами
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	return clips, nil
+}
+
+func (r *Repository) getClipsInfoForGroup(endpoint string) (*models.GetClipsForGroupAPIResponse, error) {
+	if r.rapidAPIKey == "" {
+		return nil, fmt.Errorf("RAPIDAPI_KEY is not set")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		fmt.Sprintf("%s%s", constants.RapidVkGetClipsInfoForGroup, endpoint),
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Устанавливаем заголовки
+	req.Header.Set("x-rapidapi-key", r.rapidAPIKey)
+	req.Header.Set("x-rapidapi-host", "vk-scraper.p.rapidapi.com")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var apiResp models.GetClipsForGroupAPIResponse
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if apiResp.Status != "ok" {
+		return nil, fmt.Errorf("API error: %s", apiResp.Message)
+	}
+
+	return &apiResp, nil
+}
+
+func (r *Repository) GetInstagramReelInfo(reelURL string) (*models.InstagramAPIResponse, error) {
+	r.processingInstagramMu.Lock()
+	defer r.processingInstagramMu.Unlock()
+
+	if r.rapidAPIKey == "" {
+		return nil, fmt.Errorf("RAPIDAPI_KEY is not set")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	// Создаем запрос с Query параметрами
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		constants.RapidInstagramGetReelInfo,
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %v", err)
+	}
+
+	// Добавляем query параметры
+	q := req.URL.Query()
+	q.Add("code_or_id_or_url", reelURL)
+	req.URL.RawQuery = q.Encode()
+
+	// Устанавливаем заголовки
+	req.Header.Set("x-rapidapi-key", r.rapidAPIKey)
+	req.Header.Set("x-rapidapi-host", "real-time-instagram-scraper-api1.p.rapidapi.com")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to do request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Обрабатываем ответ
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("err http code: %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	var data models.InstagramAPIResponse
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, fmt.Errorf("failed to parse JSON: %v, url: %s", err, reelURL)
+	}
+
+	return &data, nil
+}
+
+func getUserClipsEndpoint(identification, cursor string) string {
+	endpoint := fmt.Sprintf("/users/clips?owner_id=chplk:%s", identification)
+	if cursor != "" {
+		endpoint += fmt.Sprintf("&cursor=%s", cursor)
+	}
+
+	return endpoint
+}
