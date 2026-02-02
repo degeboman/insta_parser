@@ -240,7 +240,7 @@ func (s *UrlsService) GetUrls(
 		url = strings.TrimSpace(url)
 		countInt, err := strconv.Atoi(strings.TrimSpace(count))
 		if err != nil {
-			countInt = 20
+			countInt = 12
 		}
 
 		if models.IsAvailableByParsingType(url, parsingTypes) {
