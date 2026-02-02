@@ -116,11 +116,7 @@ func (r *Repository) getReelsForUser(endpoint string) (*models.GetInstagramReels
 		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
-	var i interface{}
 	var apiResp models.GetInstagramReelsAPIResponse
-	if err := json.Unmarshal(body, &i); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
 	if err := json.Unmarshal(body, &apiResp); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

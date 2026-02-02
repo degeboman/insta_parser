@@ -77,7 +77,7 @@ type (
 
 const (
 	maxCount     = 10000
-	defaultCount = 10
+	defaultCount = 12
 )
 
 func (u *Usecase) ParseAccount(

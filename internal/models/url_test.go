@@ -32,12 +32,39 @@ func Test_parseSocialAccountURL(t *testing.T) {
 			wantErr:         false,
 		},
 		{
-			name: "case 2",
+			name: "case 3",
 			args: args{
 				url: "https://vk.ru/smotri_video_tovarov",
 			},
 			wantParsingType: VKParsingType,
 			wantAccount:     "smotri_video_tovarov",
+			wantErr:         false,
+		},
+		{
+			name: "case 4",
+			args: args{
+				url: "https://www.instagram.com/makovkaaaaaa/reels/",
+			},
+			wantParsingType: InstagramParsingType,
+			wantAccount:     "makovkaaaaaa",
+			wantErr:         false,
+		},
+		{
+			name: "case 5",
+			args: args{
+				url: "https://www.instagram.com/mzhelskaya.zhenya?igsh=MTQxaXI5OTBsN2VmZw==",
+			},
+			wantParsingType: InstagramParsingType,
+			wantAccount:     "mzhelskaya.zhenya",
+			wantErr:         false,
+		},
+		{
+			name: "case 6",
+			args: args{
+				url: "https://www.instagram.com/filatova__l?igsh=OHRpMXJnYzJjN2Rt",
+			},
+			wantParsingType: InstagramParsingType,
+			wantAccount:     "filatova__l",
 			wantErr:         false,
 		},
 	}

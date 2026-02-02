@@ -118,19 +118,19 @@ type InstagramReelItem struct {
 }
 
 type InstagramMedia struct {
-	TakenAt       int64             `json:"taken_at"`
-	PK            string            `json:"pk"`
-	ID            string            `json:"id"`
-	MediaType     int               `json:"media_type"`
-	Code          string            `json:"code"`
-	Caption       *InstagramCaption `json:"caption"`
-	PlayCount     int               `json:"play_count"`
-	LikeCount     int               `json:"like_count"`
-	CommentCount  int               `json:"comment_count"`
-	ReshareCount  int               `json:"reshare_count"`
-	IgPlayCount   int               `json:"ig_play_count"`
-	VideoDuration float64           `json:"video_duration"`
-	HasAudio      bool              `json:"has_audio"`
+	TakenAt       int64            `json:"taken_at"`
+	PK            string           `json:"pk"`
+	ID            string           `json:"id"`
+	MediaType     int              `json:"media_type"`
+	Code          string           `json:"code"`
+	Caption       InstagramCaption `json:"caption,omitempty"`
+	PlayCount     int              `json:"play_count"`
+	LikeCount     int              `json:"like_count"`
+	CommentCount  int              `json:"comment_count"`
+	ReshareCount  int              `json:"reshare_count"`
+	IgPlayCount   int              `json:"ig_play_count"`
+	VideoDuration float64          `json:"video_duration"`
+	HasAudio      bool             `json:"has_audio"`
 }
 
 type InstagramCaption struct {
@@ -187,7 +187,7 @@ func ProcessInstagramReelResponse(apiReel *InstagramMedia, accountURL string) *I
 		URL:         fmt.Sprintf("https://www.instagram.com/reel/%s/", apiReel.Code),
 		AccountURL:  accountURL,
 		Description: apiReel.Caption.Text,
-		Views:       int(views),
+		Views:       views,
 		Likes:       likes,
 		Comments:    comments,
 		Shares:      shares,
