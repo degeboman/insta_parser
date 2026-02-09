@@ -36,6 +36,7 @@ func main() {
 		rapidRepo,
 		vkRepo,
 		progressSrv,
+		rapidRepo,
 	)
 
 	parsingAccountUsecase := parsing_account.NewUsecase(
@@ -45,6 +46,7 @@ func main() {
 		progressSrv,
 		rapidRepo,
 		googleSheetRepo,
+		rapidRepo,
 		rapidRepo,
 	)
 

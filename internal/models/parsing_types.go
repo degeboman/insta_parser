@@ -40,5 +40,10 @@ func ParsingTypeByUrl(url string) ParsingType {
 		return InstagramParsingType
 	}
 
+	// Проверяем, содержит ли URL домен youtube.com
+	if strings.Contains(urlLower, "youtube.com") {
+		return YoutubeParsingType
+	}
+
 	return UnknownParsingType
 }

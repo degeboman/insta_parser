@@ -21,21 +21,6 @@ func NewUrlsService(log *slog.Logger, sheetsService *sheets.Service) *UrlsServic
 	return &UrlsService{log: log, sheetsService: sheetsService}
 }
 
-func (s *UrlsService) SheetIDByName(spreadsheetID, name string) (int64, error) {
-	spreadsheet, err := s.sheetsService.Spreadsheets.Get(spreadsheetID).Do()
-	if err != nil {
-		return 0, fmt.Errorf("failed to get spreadsheet: %w", err)
-	}
-
-	for _, sheet := range spreadsheet.Sheets {
-		if sheet.Properties.Title == name {
-			return sheet.Properties.SheetId, nil
-		}
-	}
-
-	return 0, fmt.Errorf("could not find sheet with name %s", name)
-}
-
 func (s *UrlsService) FindUrls(isSelected bool, parsingTypes []models.ParsingType, sheetName, spreadsheetID string) ([]*models.UrlInfo, error) {
 	const urlSearchWord = "видео"
 
@@ -66,7 +51,15 @@ func (s *UrlsService) AccountUrls(
 		columnsPositions.CheckboxColumnIndex = -1
 	}
 
-	return s.GetUrls(spreadsheetID, sheetName, columnsPositions, []models.ParsingType{models.VKParsingType, models.InstagramParsingType})
+	return s.GetUrls(
+		spreadsheetID,
+		sheetName,
+		columnsPositions,
+		[]models.ParsingType{
+			models.VKParsingType,
+			models.InstagramParsingType,
+			models.YoutubeParsingType,
+		})
 }
 
 func (s *UrlsService) findColumns(spreadsheetID, sheetName, urlWord string) (*models.ColumnPositions, error) {
@@ -78,7 +71,7 @@ func (s *UrlsService) findColumns(spreadsheetID, sheetName, urlWord string) (*mo
 	}
 
 	if len(resp.Values) == 0 {
-		return nil, fmt.Errorf("вторая строка листа пуста")
+		return nil, fmt.Errorf("second row if empty")
 	}
 
 	headerRow := resp.Values[0]
@@ -106,19 +99,16 @@ func (s *UrlsService) findColumns(spreadsheetID, sheetName, urlWord string) (*mo
 		// Поиск колонки "Ссылка на видео"
 		if strings.Contains(lowerValue, "ссылка") && strings.Contains(lowerValue, urlWord) {
 			positions.URLColumnIndex = i + 1 // Преобразуем в 1-based индекс
-			s.log.Info(fmt.Sprintf("Найдена колонка \"Ссылка на %s\" в позиции: %d", urlWord, positions.URLColumnIndex))
 		}
 
 		// Поиск колонки "Парсинг" или "Select"
 		if strings.Contains(lowerValue, "парсинг") {
 			positions.CheckboxColumnIndex = i + 1 // Преобразуем в 1-based индекс
-			s.log.Info(fmt.Sprintf("Найдена колонка \"%s\" в позиции: %d", cellValue, positions.CheckboxColumnIndex))
 		}
 
 		// Поиск колонки "Парсинг" или "Select"
 		if strings.Contains(lowerValue, "глубина") {
 			positions.CountColumnIndex = i + 1 // Преобразуем в 1-based индекс
-			s.log.Info(fmt.Sprintf("Найдена колонка \"%s\" в позиции: %d", cellValue, positions.CountColumnIndex))
 		}
 	}
 
@@ -205,14 +195,14 @@ func (s *UrlsService) GetUrls(
 		if checkboxColIndex >= 0 {
 			// Проверяем, что колонка чекбокса существует в строке
 			if checkboxColIndex >= len(row) {
-				s.log.Info("Предупреждение: строка %d не содержит колонку чекбокса", slog.Int("row", rowIndex+3))
+				s.log.Info("строка не содержит колонку чекбокса", slog.Int("row", rowIndex+3))
 				continue
 			}
 
 			checkboxCell := row[checkboxColIndex]
 			checked, ok := parseCheckboxValue(checkboxCell)
 			if !ok {
-				s.log.Info("Предупреждение: некорректное значение чекбокса в строке", slog.Int("row", rowIndex+3))
+				s.log.Info("некорректное значение чекбокса в строке", slog.Int("row", rowIndex+3))
 				continue
 			}
 
@@ -225,7 +215,7 @@ func (s *UrlsService) GetUrls(
 		var count string
 		if countColIndex >= 0 {
 			if countColIndex >= len(row) {
-				s.log.Info("Предупреждение: строка %d не содержит колонку глубины", slog.Int("row", rowIndex+3))
+				s.log.Info("строка не содержит колонку глубины", slog.Int("row", rowIndex+3))
 
 			}
 

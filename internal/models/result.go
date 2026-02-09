@@ -61,8 +61,8 @@ func ProcessInstagramResponse(apiResponse *InstagramAPIResponse, url string) (*R
 	views := item.IgPlayCount
 
 	// Форматируем дату публикации
-	publishDate := ""
-	parsingDate := ""
+	var publishDate string
+
 	if item.TakenAt > 0 {
 		// Конвертируем Unix timestamp в time.Time
 		pubTime := time.Unix(item.TakenAt, 0)
@@ -77,7 +77,6 @@ func ProcessInstagramResponse(apiResponse *InstagramAPIResponse, url string) (*R
 		// Форматируем дату в нужный формат
 		pubTimeInMoscow := pubTime.In(moscow)
 		publishDate = pubTimeInMoscow.Format("02.01.2006 15:04")
-		parsingDate = time.Now().In(moscow).Format("02.01.2006 15:04")
 	}
 
 	if shares == nil {
@@ -95,7 +94,7 @@ func ProcessInstagramResponse(apiResponse *InstagramAPIResponse, url string) (*R
 		Shares:      *shares,
 		ER:          utils.GetER(likes, *shares, comments, views),
 		Virality:    utils.GetVirality(*shares, views),
-		ParsingDate: parsingDate,
+		ParsingDate: utils.ParsingDate(),
 		PublishDate: publishDate,
 	}
 
