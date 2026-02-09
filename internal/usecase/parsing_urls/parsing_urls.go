@@ -15,6 +15,7 @@ type Usecase struct {
 	dataInserter              DataInserter
 	instagramReelInfoProvider InstagramReelInfoProvider
 	vkClipInfoProvider        VKClipInfoProvider
+	youtubeShortInfoProvider  YoutubeShortInfoProvider
 }
 
 func NewUsecase(
@@ -24,6 +25,7 @@ func NewUsecase(
 	instagramReelInfoProvider InstagramReelInfoProvider,
 	vkClipInfoProvider VKClipInfoProvider,
 	trackerService TrackerService,
+	youtubeShortInfoProvider YoutubeShortInfoProvider,
 ) *Usecase {
 	return &Usecase{
 		logger:                    logger,
@@ -32,6 +34,7 @@ func NewUsecase(
 		instagramReelInfoProvider: instagramReelInfoProvider,
 		vkClipInfoProvider:        vkClipInfoProvider,
 		trackerService:            trackerService,
+		youtubeShortInfoProvider:  youtubeShortInfoProvider,
 	}
 }
 
@@ -59,6 +62,10 @@ type (
 		GetInstagramReelInfo(reelURL string) (*models.InstagramAPIResponse, error)
 	}
 
+	YoutubeShortInfoProvider interface {
+		YoutubeShortInfo(shortID string) (*models.YoutubeShortInfoApiResponse, error)
+	}
+
 	DataInserter interface {
 		InsertData(
 			spreadsheetID,
@@ -83,6 +90,7 @@ func (u *Usecase) ParseUrls(
 		[]models.ParsingType{
 			models.InstagramParsingType,
 			models.VKParsingType,
+			models.YoutubeParsingType,
 		},
 		sheetName,
 		spreadsheetID,
@@ -183,6 +191,8 @@ func (u *Usecase) processBatchUrl(
 		case models.VKParsingType:
 			time.Sleep(vkTimeout)
 			resultRow = u.parseVK(url.URL)
+		case models.YoutubeParsingType:
+			resultRow = u.parseYoutubeShort(url.URL)
 		default:
 			u.logger.Warn("Unsupported URL type",
 				slog.String("url", url.URL),
@@ -243,4 +253,26 @@ func (u *Usecase) parseVK(url string) *models.ResultRow {
 	}
 
 	return models.ProcessVKClipInfoToResultRow(url, result)
+}
+
+func (u *Usecase) parseYoutubeShort(url string) *models.ResultRow {
+	shortID, ok := models.ExtractYouTubeShortsID(url)
+	if !ok {
+		u.logger.Error("failed to extract youtube short id from url",
+			slog.String("url", url),
+		)
+		return models.EmptyResultRow(url)
+	}
+
+	result, err := u.youtubeShortInfoProvider.YoutubeShortInfo(shortID)
+	if err != nil {
+		u.logger.Error("Error getting youtube short info",
+			slog.String("url", url),
+			slog.String("err", err.Error()),
+		)
+
+		return models.EmptyResultRow(url)
+	}
+
+	return result.ToResultRow()
 }

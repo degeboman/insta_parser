@@ -10,7 +10,7 @@ const (
 	instagramPattern = `(?:https?://)?(?:www\.)?instagram\.com/([^/?#]+)`
 	vkPattern        = `(?:https?://)?(?:www\.)?vk\.(?:com|ru)/([^/?#]+)`
 	telegramPattern  = `(?:https?://)?(?:www\.)?t\.me/([^/?#]+)`
-	youtubePattern   = `(?:https?://)?(?:www\.)?youtube\.com/(?:c/|channel/|@)?([^/?#]+)`
+	youtubePattern   = `(?:https?://)?(?:www\.)?youtube\.com/(?:c/|channel/)?(@[^/?#]+)`
 	tiktokPattern    = `(?:https?://)?(?:www\.)?tiktok\.com/@([^/?#]+)`
 )
 

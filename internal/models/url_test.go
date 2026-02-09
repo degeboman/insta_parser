@@ -67,6 +67,24 @@ func Test_parseSocialAccountURL(t *testing.T) {
 			wantAccount:     "filatova__l",
 			wantErr:         false,
 		},
+		{
+			name: "case 7",
+			args: args{
+				url: "https://www.youtube.com/@mnogadetna/shorts",
+			},
+			wantParsingType: YoutubeParsingType,
+			wantAccount:     "@mnogadetna",
+			wantErr:         false,
+		},
+		{
+			name: "case 8",
+			args: args{
+				url: "https://www.youtube.com/@mnogadetna/",
+			},
+			wantParsingType: YoutubeParsingType,
+			wantAccount:     "@mnogadetna",
+			wantErr:         false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

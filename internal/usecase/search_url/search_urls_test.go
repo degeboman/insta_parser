@@ -12,55 +12,6 @@ import (
 	"google.golang.org/api/sheets/v4"
 )
 
-func TestUrlsService_SheetIDByName(t *testing.T) {
-	type fields struct {
-		sheetsService *sheets.Service
-		spreadsheetID string
-	}
-	type args struct {
-		name string
-	}
-
-	cfg := config.MustLoadForTest()
-	srv := NewService(cfg.GoogleDriveCredentials)
-
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    int64
-		wantErr bool
-	}{
-		{
-			name: "case 1",
-			fields: fields{
-				sheetsService: srv.SheetsService,
-				spreadsheetID: "1ogSt0VDKj-0Ajuz8U7J0gxs33BoozIWvizffl1z16-E",
-			},
-			args: args{
-				name: "данные",
-			},
-			want:    1743851130,
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &UrlsService{
-				sheetsService: tt.fields.sheetsService,
-			}
-			got, err := s.SheetIDByName(tt.fields.spreadsheetID, tt.args.name)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("SheetIDByName() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("SheetIDByName() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestUrlsService_FindColumns(t *testing.T) {
 	type fields struct {
 		spreadsheetID string

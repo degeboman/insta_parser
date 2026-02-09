@@ -16,6 +16,7 @@ type Usecase struct {
 	vkClipInfoProvider              VKClipInfoProvider
 	dataInserter                    DataInserter
 	instagramGetReelsInfoForAccount InstagramGetReelsInfoForAccount
+	youtubeChannelShortsData        YoutubeChannelShortsData
 }
 
 func NewUsecase(
@@ -26,6 +27,7 @@ func NewUsecase(
 	vkClipInfoProvider VKClipInfoProvider,
 	dataInserter DataInserter,
 	instagramGetReelsInfoForAccount InstagramGetReelsInfoForAccount,
+	youtubeChannelShortsData YoutubeChannelShortsData,
 ) *Usecase {
 	return &Usecase{
 		logger:                          log,
@@ -35,6 +37,7 @@ func NewUsecase(
 		vkClipInfoProvider:              vkClipInfoProvider,
 		dataInserter:                    dataInserter,
 		instagramGetReelsInfoForAccount: instagramGetReelsInfoForAccount,
+		youtubeChannelShortsData:        youtubeChannelShortsData,
 	}
 }
 
@@ -56,6 +59,10 @@ type (
 
 	InstagramGetReelsInfoForAccount interface {
 		GetInstagramReelsInfoForAccount(info *models.AccountInfo) ([]*models.InstagramReelInfo, error)
+	}
+
+	YoutubeChannelShortsData interface {
+		GetShortsInfoByAccountName(accountInfo *models.AccountInfo) ([][]interface{}, error)
 	}
 
 	TrackerService interface {
@@ -163,6 +170,7 @@ func (u *Usecase) ParseAccount(
 				u.logger.Error("Failed to get clips info",
 					slog.String("spreadsheet_id", spreadsheetID),
 					slog.String("sheet_name", sheetName),
+					slog.String("accountName", accountName),
 					slog.String("err", processVkGroupErr.Error()),
 				)
 			}
@@ -175,7 +183,21 @@ func (u *Usecase) ParseAccount(
 				u.logger.Error("Failed to get reel info",
 					slog.String("spreadsheet_id", spreadsheetID),
 					slog.String("sheet_name", sheetName),
+					slog.String("accountName", accountName),
 					slog.String("err", processInstagramReelErr.Error()),
+				)
+			}
+		case models.YoutubeParsingType:
+			if processYoutubeErr := u.processYoutubeAccount(
+				spreadsheetID,
+				accountName,
+				accountUrl,
+			); processYoutubeErr != nil {
+				u.logger.Error("Failed to get shoers info",
+					slog.String("spreadsheet_id", spreadsheetID),
+					slog.String("sheet_name", sheetName),
+					slog.String("accountName", accountName),
+					slog.String("err", processYoutubeErr.Error()),
 				)
 			}
 		}
@@ -208,7 +230,7 @@ func (u *Usecase) processVKGroup(
 
 	if insertErr := u.dataInserter.InsertData(
 		spreadsheetID,
-		constants.VkGroupsDataTable,
+		constants.AccountTable,
 		"A:I",
 		models.VKClipsInfoToInterface(result),
 	); insertErr != nil {
@@ -231,9 +253,35 @@ func (u *Usecase) processInstagramAccount(
 
 	if insertErr := u.dataInserter.InsertData(
 		spreadsheetID,
-		constants.VkGroupsDataTable,
+		constants.AccountTable,
 		"A:I",
 		models.InstagramReelInfoToInterface(result),
+	); insertErr != nil {
+		return fmt.Errorf("failed to insert groups data: %w", insertErr)
+	}
+
+	return nil
+}
+
+func (u *Usecase) processYoutubeAccount(
+	spreadsheetID, accountName string,
+	accountUrl *models.UrlInfo,
+) error {
+	result, err := u.youtubeChannelShortsData.GetShortsInfoByAccountName(
+		getAccountInfo(accountName, models.YoutubeParsingType, accountUrl),
+	)
+	if err != nil {
+		u.logger.Error("Failed to get youtube channel shorts info",
+			slog.String("account_name", accountName),
+			slog.String("err", err.Error()),
+		)
+	}
+
+	if insertErr := u.dataInserter.InsertData(
+		spreadsheetID,
+		constants.AccountTable,
+		"A:I",
+		result,
 	); insertErr != nil {
 		return fmt.Errorf("failed to insert groups data: %w", insertErr)
 	}
