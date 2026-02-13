@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"inst_parser/internal/utils"
+
+	"github.com/SevereCloud/vksdk/v2/object"
 )
 
 type VKClipInfo struct {
@@ -23,6 +25,68 @@ type VKClipInfo struct {
 	ParsingDate string
 	PublishDate string
 	Date        time.Time
+}
+
+// VKWallResponse - корневая структура ответа
+type VKWallResponse struct {
+	Response struct {
+		Items []object.WallWallpost `json:"items"`
+	} `json:"response"`
+}
+
+// WallPost - структура записи на стене
+type WallPost struct {
+	InnerType     string       `json:"inner_type"`
+	Comments      Comments     `json:"comments"`
+	Type          string       `json:"type"`
+	Attachments   []Attachment `json:"attachments"`
+	Date          int64        `json:"date"`
+	FromID        int64        `json:"from_id"`
+	ID            int64        `json:"id"`
+	Likes         Likes        `json:"likes"`
+	ReactionSetID string       `json:"reaction_set_id"`
+	OwnerID       int64        `json:"owner_id"`
+	PostType      string       `json:"post_type"`
+	Reposts       Reposts      `json:"reposts"`
+	Text          string       `json:"text"`
+	Views         Views        `json:"views"`
+	TrackCode     string       `json:"track_code"`
+}
+
+// Comments - информация о комментариях
+type Comments struct {
+	Count int `json:"count"`
+}
+
+// Attachment - вложение (может быть разных типов)
+type Attachment struct {
+	Type  string `json:"type"`
+	Video *Video `json:"video,omitempty"`
+}
+
+// Video - структура видеовложения
+type Video struct {
+	ResponseType string `json:"response_type"`
+	Comments     int    `json:"comments"`
+	Date         int64  `json:"date"`
+	Description  string `json:"description"`
+	Title        string `json:"title"`
+}
+
+// Likes - информация о лайках
+type Likes struct {
+	Count int `json:"count"`
+}
+
+// Reposts - информация о репостах
+type Reposts struct {
+	Count        int `json:"count"`
+	UserReposted int `json:"user_reposted"`
+}
+
+// Views - информация о просмотрах
+type Views struct {
+	Count int `json:"count"`
 }
 
 func VKClipsInfoToInterface(clips []*VKClipInfo) [][]interface{} {

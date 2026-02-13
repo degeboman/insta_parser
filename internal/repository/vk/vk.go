@@ -9,6 +9,7 @@ import (
 	"inst_parser/internal/models"
 
 	"github.com/SevereCloud/vksdk/v2/api"
+	"github.com/SevereCloud/vksdk/v2/api/params"
 )
 
 type Repository struct {
@@ -44,6 +45,42 @@ func (v *Repository) GroupID(groupName string) (string, error) {
 	}
 
 	return strconv.Itoa(-groupInfo[0].ID), nil // Для групп ID отрицательный
+}
+
+func (v *Repository) PostInfo(postID string) (*models.VKClipInfo, error) {
+	const vkApiMethod = "wall.getById"
+	builder := params.NewWallGetByIDBuilder()
+	builder.Posts([]string{postID})
+
+	//var response models.VKWallResponse
+	response, err := v.vkApi.WallGetByID(builder.Params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get clip info: %w", err)
+	}
+
+	if len(response) == 0 {
+		return nil, fmt.Errorf("post not found")
+	}
+
+	item := response[0]
+
+	var description string
+	if len(item.Attachments) > 0 {
+		description = item.Attachments[0].Video.Description
+	}
+
+	postInfo := &models.VKClipInfo{
+		Description: description,
+		OwnerID:     int(item.OwnerID),
+		ClipID:      int(item.ID),
+		Views:       item.Views.Count,
+		Likes:       item.Likes.Count,
+		Comments:    item.Comments.Count,
+		Shares:      item.Reposts.Count,
+		Date:        time.Unix(int64(item.Date), 0),
+	}
+
+	return postInfo, nil
 }
 
 func (v *Repository) ClipInfo(ownerID, clipID int) (*models.VKClipInfo, error) {
