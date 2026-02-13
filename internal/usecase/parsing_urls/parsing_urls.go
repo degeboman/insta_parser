@@ -2,6 +2,7 @@ package parsing_urls
 
 import (
 	"log/slog"
+	"strings"
 	"time"
 
 	"inst_parser/internal/constants"
@@ -14,7 +15,7 @@ type Usecase struct {
 	trackerService            TrackerService
 	dataInserter              DataInserter
 	instagramReelInfoProvider InstagramReelInfoProvider
-	vkClipInfoProvider        VKClipInfoProvider
+	vkInfoProvider            VKInfoProvider
 	youtubeShortInfoProvider  YoutubeShortInfoProvider
 }
 
@@ -23,7 +24,7 @@ func NewUsecase(
 	urlsProvider UrlsProvider,
 	dataInserter DataInserter,
 	instagramReelInfoProvider InstagramReelInfoProvider,
-	vkClipInfoProvider VKClipInfoProvider,
+	vkInfoProvider VKInfoProvider,
 	trackerService TrackerService,
 	youtubeShortInfoProvider YoutubeShortInfoProvider,
 ) *Usecase {
@@ -32,7 +33,7 @@ func NewUsecase(
 		urlsProvider:              urlsProvider,
 		dataInserter:              dataInserter,
 		instagramReelInfoProvider: instagramReelInfoProvider,
-		vkClipInfoProvider:        vkClipInfoProvider,
+		vkInfoProvider:            vkInfoProvider,
 		trackerService:            trackerService,
 		youtubeShortInfoProvider:  youtubeShortInfoProvider,
 	}
@@ -54,8 +55,9 @@ type (
 		FinishParsing(spreadsheetID string, row int) error
 	}
 
-	VKClipInfoProvider interface {
+	VKInfoProvider interface {
 		ClipInfo(ownerID, clipID int) (*models.VKClipInfo, error)
+		PostInfo(postID string) (*models.VKClipInfo, error)
 	}
 
 	InstagramReelInfoProvider interface {
@@ -232,6 +234,18 @@ func (u *Usecase) parseInstagram(url string) *models.ResultRow {
 }
 
 func (u *Usecase) parseVK(url string) *models.ResultRow {
+	if strings.Contains(url, "wall") {
+		return u.parseVkWall(url)
+	}
+
+	if strings.Contains(url, "clip") {
+		return u.parseVkClip(url)
+	}
+
+	return nil
+}
+
+func (u *Usecase) parseVkClip(url string) *models.ResultRow {
 	ownerID, clipID, err := models.ParseVkClipURL(url)
 	if err != nil {
 		u.logger.Error("Error parsing vk clip url",
@@ -242,9 +256,33 @@ func (u *Usecase) parseVK(url string) *models.ResultRow {
 		return models.EmptyResultRow(url)
 	}
 
-	result, err := u.vkClipInfoProvider.ClipInfo(ownerID, clipID)
+	result, err := u.vkInfoProvider.ClipInfo(ownerID, clipID)
 	if err != nil {
 		u.logger.Error("Error getting clip info",
+			slog.String("url", url),
+			slog.String("err", err.Error()),
+		)
+
+		return models.EmptyResultRow(url)
+	}
+
+	return models.ProcessVKClipInfoToResultRow(url, result)
+}
+
+func (u *Usecase) parseVkWall(url string) *models.ResultRow {
+	postID, err := models.ExtractVKPostID(url)
+	if err != nil {
+		u.logger.Error("Error extracting post ID",
+			slog.String("url", url),
+			slog.String("err", err.Error()),
+		)
+
+		return models.EmptyResultRow(url)
+	}
+
+	result, err := u.vkInfoProvider.PostInfo(postID)
+	if err != nil {
+		u.logger.Error("Error getting post info",
 			slog.String("url", url),
 			slog.String("err", err.Error()),
 		)

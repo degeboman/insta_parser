@@ -140,3 +140,36 @@ func TestParseVkClipURL(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractVKPostID(t *testing.T) {
+	type args struct {
+		url string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "case 1",
+			args: args{
+				url: "https://vk.com/wall-121490137_9873",
+			},
+			want:    "-121490137_9873",
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ExtractVKPostID(tt.args.url)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ExtractVKPostID() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ExtractVKPostID() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

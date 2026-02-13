@@ -59,3 +59,15 @@ func ParseVkClipURL(url string) (int, int, error) {
 
 	return ownerID, clipID, nil
 }
+
+func ExtractVKPostID(url string) (string, error) {
+	// Регулярное выражение для поиска wall-ЧИСЛО_ЧИСЛО
+	re := regexp.MustCompile(`wall(-?\d+_\d+)`)
+
+	matches := re.FindStringSubmatch(url)
+	if len(matches) < 2 {
+		return "", fmt.Errorf("не удалось извлечь ID стены из URL: %s", url)
+	}
+
+	return matches[1], nil
+}
