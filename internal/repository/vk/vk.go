@@ -48,7 +48,6 @@ func (v *Repository) GroupID(groupName string) (string, error) {
 }
 
 func (v *Repository) PostInfo(postID string) (*models.VKClipInfo, error) {
-	const vkApiMethod = "wall.getById"
 	builder := params.NewWallGetByIDBuilder()
 	builder.Posts([]string{postID})
 
@@ -62,22 +61,31 @@ func (v *Repository) PostInfo(postID string) (*models.VKClipInfo, error) {
 		return nil, fmt.Errorf("post not found")
 	}
 
-	item := response[0]
-
 	var description string
-	if len(item.Attachments) > 0 {
-		description = item.Attachments[0].Video.Description
+	if len(response[0].Attachments) > 0 {
+		description = response[0].Attachments[0].Video.Description
+
+		return &models.VKClipInfo{
+			Description: description,
+			OwnerID:     response[0].OwnerID,
+			ClipID:      response[0].ID,
+			Views:       response[0].Attachments[0].Video.Views,
+			Likes:       response[0].Likes.Count,
+			Comments:    response[0].Attachments[0].Video.Comments,
+			Shares:      response[0].Reposts.Count,
+			Date:        time.Unix(int64(response[0].Date), 0),
+		}, nil
 	}
 
 	postInfo := &models.VKClipInfo{
 		Description: description,
-		OwnerID:     int(item.OwnerID),
-		ClipID:      int(item.ID),
-		Views:       item.Views.Count,
-		Likes:       item.Likes.Count,
-		Comments:    item.Comments.Count,
-		Shares:      item.Reposts.Count,
-		Date:        time.Unix(int64(item.Date), 0),
+		OwnerID:     response[0].OwnerID,
+		ClipID:      response[0].ID,
+		Views:       response[0].Views.Count,
+		Likes:       response[0].Likes.Count,
+		Comments:    response[0].Comments.Count,
+		Shares:      response[0].Reposts.Count,
+		Date:        time.Unix(int64(response[0].Date), 0),
 	}
 
 	return postInfo, nil
