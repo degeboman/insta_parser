@@ -62,6 +62,7 @@ type (
 	}
 
 	YoutubeChannelShortsData interface {
+		GetChannelIDByUsername(username string) (string, error)
 		GetShortsInfoByAccountName(accountInfo *models.AccountInfo) ([][]interface{}, error)
 	}
 
@@ -267,9 +268,17 @@ func (u *Usecase) processYoutubeAccount(
 	spreadsheetID, accountName string,
 	accountUrl *models.UrlInfo,
 ) error {
-	result, err := u.youtubeChannelShortsData.GetShortsInfoByAccountName(
-		getAccountInfo(accountName, models.YoutubeParsingType, accountUrl),
-	)
+	chanelID, err := u.youtubeChannelShortsData.GetChannelIDByUsername(accountName)
+	if err != nil {
+		u.logger.Error("Failed to get chanel id by username",
+			slog.String("account_name", accountName),
+			slog.String("err", err.Error()),
+		)
+	}
+	accountInfo := getAccountInfo(accountName, models.YoutubeParsingType, accountUrl)
+	accountInfo.Identification = chanelID
+
+	result, err := u.youtubeChannelShortsData.GetShortsInfoByAccountName(accountInfo)
 	if err != nil {
 		u.logger.Error("Failed to get youtube channel shorts info",
 			slog.String("account_name", accountName),

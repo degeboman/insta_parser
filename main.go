@@ -1,6 +1,7 @@
 package main
 
 import (
+	"inst_parser/internal/repository/youtube"
 	"log"
 	"net/http"
 
@@ -28,6 +29,7 @@ func main() {
 	urlSrv := search_url.NewUrlsService(l, googleSheetRepo.SheetsService)
 	rapidRepo := rapid.NewRepository(cfg.Rapid.ApiKey, l)
 	vkRepo := vk.NewRepository(l, cfg.VK.Token)
+	youtubeRepo := youtube.NewYouTubeClient(l, cfg.Youtube.YoutubeToken)
 
 	parsingUrlsUsecase := parsing_urls.NewUsecase(
 		l,
@@ -36,7 +38,7 @@ func main() {
 		rapidRepo,
 		vkRepo,
 		progressSrv,
-		rapidRepo,
+		youtubeRepo,
 	)
 
 	parsingAccountUsecase := parsing_account.NewUsecase(
@@ -47,7 +49,7 @@ func main() {
 		rapidRepo,
 		googleSheetRepo,
 		rapidRepo,
-		rapidRepo,
+		youtubeRepo,
 	)
 
 	parsingUrlsHandler := handlers.NewParsingUrlsHandler(l, parsingUrlsUsecase)
