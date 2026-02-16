@@ -108,6 +108,9 @@ func ResultRowToInterface(results []*ResultRow) [][]interface{} {
 		if results == nil {
 			continue
 		}
+		if results[i] == nil {
+			continue
+		}
 		rowValues := []interface{}{
 			results[i].URL,
 			results[i].Views,
