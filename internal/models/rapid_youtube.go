@@ -38,7 +38,7 @@ type YoutubeChannelShortsData struct {
 	VideoId string `json:"videoId"`
 }
 
-func (y YoutubeShortInfoApiResponse) ToResultRow() *ResultRow {
+func (y YoutubeShortInfoApiResponse) ToResultRow(originalUrl string) *ResultRow {
 	likes := y.LikeCount
 	comments, err := strconv.Atoi(y.CommentCount)
 	if err != nil {
@@ -61,7 +61,7 @@ func (y YoutubeShortInfoApiResponse) ToResultRow() *ResultRow {
 	}
 
 	result := &ResultRow{
-		URL:         fmt.Sprintf("https://www.youtube.com/shorts/%s", y.ID),
+		URL:         originalUrl,
 		Description: fmt.Sprintf("%s.%s", y.Title, y.Description),
 		Views:       int64(views),
 		Likes:       int64(likes),
