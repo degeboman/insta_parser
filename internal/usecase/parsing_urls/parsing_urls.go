@@ -312,5 +312,5 @@ func (u *Usecase) parseYoutubeShort(url string) *models.ResultRow {
 		return models.EmptyResultRow(url)
 	}
 
-	return result.ToResultRow()
+	return result.ToResultRow(url)
 }
