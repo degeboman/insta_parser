@@ -39,6 +39,7 @@ func main() {
 		vkRepo,
 		progressSrv,
 		youtubeRepo,
+		rapidRepo,
 	)
 
 	parsingAccountUsecase := parsing_account.NewUsecase(
