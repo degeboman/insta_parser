@@ -20,6 +20,7 @@ type Repository struct {
 	logger                *slog.Logger
 	httpClient            *http.Client
 	processingInstagramMu sync.Mutex
+	processingTiktokMu    sync.Mutex
 }
 
 func NewRepository(
@@ -274,7 +275,10 @@ func (r *Repository) GetInstagramReelInfo(reelURL string) (*models.InstagramAPIR
 	return &data, nil
 }
 
-func (r *Repository) YoutubeShortInfo(shortID string) (*models.YoutubeShortInfoApiResponse, error) {
+func (r *Repository) GetTiktokVideoInfo(url string) (*models.TikTokVideoApiResponse, error) {
+	r.processingTiktokMu.Lock()
+	defer r.processingTiktokMu.Unlock()
+
 	if r.rapidAPIKey == "" {
 		return nil, fmt.Errorf("RAPIDAPI_KEY is not set")
 	}
@@ -286,7 +290,7 @@ func (r *Repository) YoutubeShortInfo(shortID string) (*models.YoutubeShortInfoA
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodGet,
-		constants.RapidYoutubeShortInfo,
+		constants.RapidTiktokVideoInfo,
 		nil,
 	)
 	if err != nil {
@@ -295,12 +299,12 @@ func (r *Repository) YoutubeShortInfo(shortID string) (*models.YoutubeShortInfoA
 
 	// Добавляем query параметры
 	q := req.URL.Query()
-	q.Add("id", shortID)
+	q.Add("url", url)
 	req.URL.RawQuery = q.Encode()
 
 	// Устанавливаем заголовки
 	req.Header.Set("x-rapidapi-key", r.rapidAPIKey)
-	req.Header.Set("x-rapidapi-host", "yt-api.p.rapidapi.com")
+	req.Header.Set("x-rapidapi-host", "tiktok-scraper7.p.rapidapi.com")
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := r.httpClient.Do(req)
@@ -315,126 +319,12 @@ func (r *Repository) YoutubeShortInfo(shortID string) (*models.YoutubeShortInfoA
 		return nil, fmt.Errorf("err http code: %d, body: %s", resp.StatusCode, string(body))
 	}
 
-	var data models.YoutubeShortInfoApiResponse
+	var data models.TikTokVideoApiResponse
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %v, url: %s", err, url)
 	}
 
 	return &data, nil
-}
-
-func (r *Repository) GetShortsInfoByAccountName(accountInfo *models.AccountInfo) ([][]interface{}, error) {
-	var (
-		shortsID          []string
-		continuationToken string
-		err               error
-	)
-	shortsInfo := make([][]interface{}, 0, accountInfo.Count)
-
-	for len(shortsInfo) < accountInfo.Count {
-		shortsID, continuationToken, err = r.getShortsGroupByAccountName(accountInfo.Identification, continuationToken)
-		if err != nil {
-			return nil,
-				fmt.Errorf("failed to fetch shorts: %w", err)
-		}
-
-		// Если клипов больше нет, выходим
-		if len(shortsID) == 0 {
-			break
-		}
-
-		// Конвертируем и добавляем клипы
-		for _, shortID := range shortsID {
-			if len(shortsInfo) >= accountInfo.Count {
-				break
-			}
-
-			resp, err := r.YoutubeShortInfo(shortID)
-			if err != nil {
-				r.logger.Error("failed to fetch shorts: %w, shortID - %s", err, shortID)
-				shortsInfo = append(
-					shortsInfo,
-					models.ResultRowToInterface([]*models.ResultRow{
-						models.EmptyResultRow(fmt.Sprintf("https://www.youtube.com/shorts/%s", shortID)),
-					})...,
-				)
-				continue
-			}
-
-			shortsInfo = append(shortsInfo, resp.ToInterface(accountInfo.AccountUrl))
-		}
-
-		if continuationToken == "" {
-			break
-		}
-
-		// Задержка между запросами
-		time.Sleep(500 * time.Millisecond)
-	}
-
-	return shortsInfo, nil
-}
-
-func (r *Repository) getShortsGroupByAccountName(accountName, continuationToken string) ([]string, string, error) {
-	if r.rapidAPIKey == "" {
-		return nil, "", fmt.Errorf("RAPIDAPI_KEY is not set")
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
-
-	// Создаем запрос с Query параметрами
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodGet,
-		constants.RapidYoutubeChannelShorts,
-		nil,
-	)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to create request: %v", err)
-	}
-
-	// Добавляем query параметры
-	q := req.URL.Query()
-	q.Add("forUsername", accountName)
-
-	if continuationToken != "" {
-		q.Add("token", continuationToken)
-	}
-
-	req.URL.RawQuery = q.Encode()
-
-	// Устанавливаем заголовки
-	req.Header.Set("x-rapidapi-key", r.rapidAPIKey)
-	req.Header.Set("x-rapidapi-host", "yt-api.p.rapidapi.com")
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := r.httpClient.Do(req)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to do request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	// Обрабатываем ответ
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, "", fmt.Errorf("err http code: %d, body: %s", resp.StatusCode, string(body))
-	}
-
-	var data models.YoutubeChannelShortsApiResponse
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, "", fmt.Errorf("failed to parse JSON: %v", err)
-	}
-
-	var shortsID []string
-
-	for _, item := range data.Data {
-		if item.Type == "shorts" {
-			shortsID = append(shortsID, item.VideoId)
-		}
-	}
-
-	return shortsID, data.Continuation, nil
 }
 
 func getUserClipsEndpoint(identification, cursor string) string {

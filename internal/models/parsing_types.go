@@ -45,5 +45,9 @@ func ParsingTypeByUrl(url string) ParsingType {
 		return YoutubeParsingType
 	}
 
+	if strings.Contains(urlLower, "tiktok.com") {
+		return TiktokParsingType
+	}
+
 	return UnknownParsingType
 }

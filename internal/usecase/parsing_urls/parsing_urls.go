@@ -17,6 +17,7 @@ type Usecase struct {
 	instagramReelInfoProvider InstagramReelInfoProvider
 	vkInfoProvider            VKInfoProvider
 	youtubeShortInfoProvider  YoutubeShortInfoProvider
+	tiktokVideoInfoProvider   TiktokVideoInfoProvider
 }
 
 func NewUsecase(
@@ -27,6 +28,7 @@ func NewUsecase(
 	vkInfoProvider VKInfoProvider,
 	trackerService TrackerService,
 	youtubeShortInfoProvider YoutubeShortInfoProvider,
+	tiktokVideoInfoProvider TiktokVideoInfoProvider,
 ) *Usecase {
 	return &Usecase{
 		logger:                    logger,
@@ -36,6 +38,7 @@ func NewUsecase(
 		vkInfoProvider:            vkInfoProvider,
 		trackerService:            trackerService,
 		youtubeShortInfoProvider:  youtubeShortInfoProvider,
+		tiktokVideoInfoProvider:   tiktokVideoInfoProvider,
 	}
 }
 
@@ -68,6 +71,10 @@ type (
 		YoutubeShortInfo(shortID string) (*models.YoutubeShortInfoApiResponse, error)
 	}
 
+	TiktokVideoInfoProvider interface {
+		GetTiktokVideoInfo(url string) (*models.TikTokVideoApiResponse, error)
+	}
+
 	DataInserter interface {
 		InsertData(
 			spreadsheetID,
@@ -93,6 +100,7 @@ func (u *Usecase) ParseUrls(
 			models.InstagramParsingType,
 			models.VKParsingType,
 			models.YoutubeParsingType,
+			models.TiktokParsingType,
 		},
 		sheetName,
 		spreadsheetID,
@@ -195,6 +203,8 @@ func (u *Usecase) processBatchUrl(
 			resultRow = u.parseVK(url.URL)
 		case models.YoutubeParsingType:
 			resultRow = u.parseYoutubeShort(url.URL)
+		case models.TiktokParsingType:
+			resultRow = u.ParseTiktokVideo(url.URL)
 		default:
 			u.logger.Warn("Unsupported URL type",
 				slog.String("url", url.URL),
@@ -313,4 +323,27 @@ func (u *Usecase) parseYoutubeShort(url string) *models.ResultRow {
 	}
 
 	return result.ToResultRow(url)
+}
+
+func (u *Usecase) ParseTiktokVideo(url string) *models.ResultRow {
+	info, err := u.tiktokVideoInfoProvider.GetTiktokVideoInfo(url)
+	if err != nil {
+		u.logger.Error("Error getting tiktok video info",
+			slog.String("url", url),
+			slog.String("err", err.Error()),
+		)
+
+		return models.EmptyResultRow(url)
+	}
+
+	result, err := info.ToResultRow(url)
+	if err != nil {
+		u.logger.Error("Error getting tiktok video info",
+			slog.String("url", url),
+			slog.String("err", err.Error()),
+		)
+		return models.EmptyResultRow(url)
+	}
+
+	return result
 }
