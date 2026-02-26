@@ -201,10 +201,10 @@ func (c Client) GetChannelIDByUsername(username string) (string, error) {
 }
 
 // GetShortsInfoByAccountName получает все видео из плейлиста
-func (c *Client) GetShortsInfoByAccountName(accountInfo *models.AccountInfo) ([][]interface{}, error) {
+func (c *Client) GetShortsInfoByAccountName(accountInfo *models.AccountInfo) ([]*models.YoutubeShortInfoApiResponse, error) {
 	const baseURL = "https://www.googleapis.com/youtube/v3/playlistItems"
 	pageToken := ""
-	shortsInfo := make([][]interface{}, 0, accountInfo.Count)
+	shortsInfo := make([]*models.YoutubeShortInfoApiResponse, 0, accountInfo.Count)
 
 	for len(shortsInfo) < accountInfo.Count {
 		params := url.Values{}
@@ -262,14 +262,14 @@ func (c *Client) GetShortsInfoByAccountName(accountInfo *models.AccountInfo) ([]
 				c.logger.Error("failed to fetch shorts: %w, shortID - %s", err, item.Snippet.ResourceID.VideoID)
 				shortsInfo = append(
 					shortsInfo,
-					models.ResultRowToInterface([]*models.ResultRow{
-						models.EmptyResultRow(fmt.Sprintf("https://www.youtube.com/shorts/%s", item.Snippet.ResourceID.VideoID)),
-					})...,
+					&models.YoutubeShortInfoApiResponse{
+						ID: item.Snippet.ResourceID.VideoID,
+					},
 				)
 				continue
 			}
 
-			shortsInfo = append(shortsInfo, result.ToInterface(accountInfo.AccountUrl))
+			shortsInfo = append(shortsInfo, result)
 		}
 
 		pageToken = playlistResp.NextPageToken

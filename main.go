@@ -58,6 +58,7 @@ func main() {
 
 	http.HandleFunc(constants.ParsingUrls, parsingUrlsHandler.ParsingUrls)
 	http.HandleFunc(constants.ParsingAccount, parsingAccountHandler.ParsingAccount)
+	http.HandleFunc(constants.ClipMoneyParsingAccount, parsingAccountHandler.ClipMoneyParsingAccount)
 
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal("Server failed to start:", err)
