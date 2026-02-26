@@ -25,6 +25,13 @@ type UrlInfo struct {
 	Count int
 }
 
+func DefaultUrlInfo(url string) *UrlInfo {
+	return &UrlInfo{
+		URL:   url,
+		Count: 12,
+	}
+}
+
 func EmptyResultRow(url string) *ResultRow {
 	moscow, err := time.LoadLocation("Europe/Moscow")
 	if err != nil {

@@ -2,8 +2,9 @@ package constants
 
 // app endpoints
 const (
-	ParsingUrls    = "/parsing_urls"
-	ParsingAccount = "/parsing_account"
+	ParsingUrls             = "/parsing_urls"
+	ParsingAccount          = "/parsing_account"
+	ClipMoneyParsingAccount = "/clip_money/parsing_account"
 )
 
 // rapid api urls

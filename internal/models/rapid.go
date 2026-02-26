@@ -230,3 +230,16 @@ func InstagramReelInfoToInterface(data []*InstagramReelInfo) [][]interface{} {
 
 	return values
 }
+
+func YoutubeShortInfoApiResponseToInterface(data []*YoutubeShortInfoApiResponse, accountUrl string) [][]interface{} {
+	values := make([][]interface{}, 0, len(data))
+
+	for i := range data {
+		if data == nil {
+			continue
+		}
+		values = append(values, data[i].ToInterface(accountUrl))
+	}
+
+	return values
+}
