@@ -8,7 +8,7 @@ import (
 )
 
 type ClipMoneyResultRow struct {
-	AccountUrl  string `json:"accountUrl"`
+	AccountUrl  string `json:"account_url"`
 	URL         string `json:"url"`
 	Description string `json:"description"`
 	Views       int64  `json:"views"`
