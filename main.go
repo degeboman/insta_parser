@@ -54,11 +54,14 @@ func main() {
 	)
 
 	parsingUrlsHandler := handlers.NewParsingUrlsHandler(l, parsingUrlsUsecase)
-	parsingAccountHandler := handlers.NewParsingVkGroupsHandler(l, parsingAccountUsecase)
+	clipMoneyParsingUrlHandler := handlers.NewClipMoneyParsingUrl(l, parsingUrlsUsecase)
+	parsingAccountHandler := handlers.NewParsingAccountsHandler(l, parsingAccountUsecase)
+	clipMoneyParsingAccountHandler := handlers.NewClipMoneyParsingAccount(l, parsingAccountUsecase)
 
 	http.HandleFunc(constants.ParsingUrls, parsingUrlsHandler.ParsingUrls)
 	http.HandleFunc(constants.ParsingAccount, parsingAccountHandler.ParsingAccount)
-	http.HandleFunc(constants.ClipMoneyParsingAccount, parsingAccountHandler.ClipMoneyParsingAccount)
+	http.HandleFunc(constants.ClipMoneyParsingAccount, clipMoneyParsingAccountHandler.ClipMoneyParsingAccount)
+	http.HandleFunc(constants.ClipMoneyParsingUrl, clipMoneyParsingUrlHandler.ClipMoneyParsingUrl)
 
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal("Server failed to start:", err)

@@ -1,6 +1,7 @@
 package parsing_urls
 
 import (
+	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -183,6 +184,23 @@ func (u *Usecase) ParseUrls(
 	}
 }
 
+func (u *Usecase) ClipMoneyParseUrl(
+	url string,
+) (*models.ResultRow, error) {
+	u.logger.Info("ClipMoneyParseUrl started")
+	defer u.logger.Info("ClipMoneyParseUrl finished")
+
+	result, err := u.processUrl(url)
+	if err != nil {
+		u.logger.Error("Error processing url",
+			slog.String("url", url),
+			slog.String("err", err.Error()),
+		)
+	}
+
+	return result, err
+}
+
 func (u *Usecase) processBatchUrl(
 	urls []*models.UrlInfo,
 ) []*models.ResultRow {
@@ -219,6 +237,33 @@ func (u *Usecase) processBatchUrl(
 	}
 
 	return results
+}
+
+func (u *Usecase) processUrl(
+	url string,
+) (*models.ResultRow, error) {
+	const (
+		instaTimeout = 550 * time.Millisecond
+		vkTimeout    = 250 * time.Millisecond
+	)
+
+	var resultRow *models.ResultRow
+	switch models.ParsingTypeByUrl(url) {
+	case models.InstagramParsingType:
+		time.Sleep(instaTimeout)
+		resultRow = u.parseInstagram(url)
+	case models.VKParsingType:
+		time.Sleep(vkTimeout)
+		resultRow = u.parseVK(url)
+	case models.YoutubeParsingType:
+		resultRow = u.parseYoutubeShort(url)
+	case models.TiktokParsingType:
+		resultRow = u.ParseTiktokVideo(url)
+	default:
+		return nil, fmt.Errorf("unsupported URL type: %s", models.ParsingTypeByUrl(url))
+	}
+
+	return resultRow, nil
 }
 
 func (u *Usecase) parseInstagram(url string) *models.ResultRow {
