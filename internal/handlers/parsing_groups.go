@@ -25,7 +25,7 @@ type ParsingAccount struct {
 	usecase *parsing_account.Usecase
 }
 
-func NewParsingVkGroupsHandler(
+func NewParsingAccountsHandler(
 	log *slog.Logger,
 	usecase *parsing_account.Usecase,
 ) *ParsingAccount {

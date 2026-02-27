@@ -2,34 +2,34 @@ package handlers
 
 import (
 	"encoding/json"
+	"inst_parser/internal/usecase/parsing_urls"
 	"log/slog"
 	"net/http"
 
 	"inst_parser/internal/models"
-	"inst_parser/internal/usecase/parsing_account"
 )
 
 type (
-	ClipMoneyParsingAccountRequest struct {
-		AccountUrl string `json:"account_url"`
+	ClipMoneyParsingUrlRequest struct {
+		Url string `json:"url"`
 	}
-	ClipMoneyParsingAccountResponse struct {
-		Success bool                         `json:"success"`
-		Message string                       `json:"message"`
-		Data    []*models.ClipMoneyResultRow `json:"data"`
+	ClipMoneyParsingUrlResponse struct {
+		Success bool              `json:"success"`
+		Message string            `json:"message"`
+		Data    *models.ResultRow `json:"data"`
 	}
 )
 
-type ClipMoneyParsingAccount struct {
+type ClipMoneyParsingUrl struct {
 	logger  *slog.Logger
-	usecase *parsing_account.Usecase
+	usecase *parsing_urls.Usecase
 }
 
-func NewClipMoneyParsingAccount(logger *slog.Logger, usecase *parsing_account.Usecase) *ClipMoneyParsingAccount {
-	return &ClipMoneyParsingAccount{logger: logger, usecase: usecase}
+func NewClipMoneyParsingUrl(logger *slog.Logger, usecase *parsing_urls.Usecase) *ClipMoneyParsingUrl {
+	return &ClipMoneyParsingUrl{logger: logger, usecase: usecase}
 }
 
-func (h *ClipMoneyParsingAccount) ClipMoneyParsingAccount(w http.ResponseWriter, r *http.Request) {
+func (h *ClipMoneyParsingUrl) ClipMoneyParsingUrl(w http.ResponseWriter, r *http.Request) {
 	// Разрешаем только POST метод
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -37,10 +37,10 @@ func (h *ClipMoneyParsingAccount) ClipMoneyParsingAccount(w http.ResponseWriter,
 	}
 
 	// Парсим JSON из тела запроса
-	var req ClipMoneyParsingAccountRequest
+	var req ClipMoneyParsingUrlRequest
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&req); err != nil {
-		resp := ClipMoneyParsingAccountResponse{
+		resp := ClipMoneyParsingUrlResponse{
 			Success: false,
 			Message: "Invalid JSON format",
 		}
@@ -50,26 +50,26 @@ func (h *ClipMoneyParsingAccount) ClipMoneyParsingAccount(w http.ResponseWriter,
 	}
 
 	// Проверяем, что tablename передан
-	if req.AccountUrl == "" {
-		resp := ParsingAccountResponse{
+	if req.Url == "" {
+		resp := ClipMoneyParsingUrlResponse{
 			Success: false,
-			Message: "spreadsheet_id is required",
+			Message: "url is required",
 		}
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(resp)
 		return
 	}
 
-	data, err := h.usecase.ClipMoneyParseAccount(
-		req.AccountUrl,
+	data, err := h.usecase.ClipMoneyParseUrl(
+		req.Url,
 	)
 	if err != nil {
 		h.logger.Error("Failed to parse account data",
-			slog.String("account_url", req.AccountUrl),
+			slog.String("url", req.Url),
 			slog.String("err", err.Error()),
 		)
 
-		resp := ParsingAccountResponse{
+		resp := ClipMoneyParsingUrlResponse{
 			Success: false,
 			Message: err.Error(),
 		}
@@ -79,7 +79,7 @@ func (h *ClipMoneyParsingAccount) ClipMoneyParsingAccount(w http.ResponseWriter,
 	}
 
 	// Возвращаем успешный ответ
-	resp := ClipMoneyParsingAccountResponse{
+	resp := ClipMoneyParsingUrlResponse{
 		Success: true,
 		Message: "",
 		Data:    data,
