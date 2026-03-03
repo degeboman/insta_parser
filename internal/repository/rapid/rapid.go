@@ -20,6 +20,7 @@ type Repository struct {
 	logger                *slog.Logger
 	httpClient            *http.Client
 	processingInstagramMu sync.Mutex
+	processingVkMu        sync.Mutex
 	processingTiktokMu    sync.Mutex
 }
 
@@ -131,8 +132,8 @@ func (r *Repository) getReelsForUser(endpoint string) (*models.GetInstagramReels
 }
 
 func (r *Repository) GetVKClipsInfoForGroup(info *models.AccountInfo) ([]*models.VKClipInfo, error) {
-	r.processingInstagramMu.Lock()
-	defer r.processingInstagramMu.Unlock()
+	r.processingVkMu.Lock()
+	defer r.processingVkMu.Unlock()
 
 	clips := make([]*models.VKClipInfo, 0, info.Count)
 	var cursor string

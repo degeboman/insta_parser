@@ -3,6 +3,7 @@ package parsing_account
 import (
 	"fmt"
 	"log/slog"
+	"strconv"
 
 	"inst_parser/internal/constants"
 	"inst_parser/internal/models"
@@ -312,12 +313,17 @@ func (u *Usecase) processVKGroup(
 	accountName string,
 	accountUrl *models.UrlInfo,
 ) ([]*models.VKClipInfo, error) {
-	groupID, groupIDErr := u.vkGroupIDProvider.GroupID(accountName)
-	if groupIDErr != nil {
-		u.logger.Error("Failed to get group id",
-			slog.String("account_name", accountName),
-			slog.String("err", groupIDErr.Error()),
-		)
+	var groupID string
+	if _, err := strconv.Atoi(accountName); err == nil {
+		groupID = accountName
+	} else {
+		groupID, err = u.vkGroupIDProvider.GroupID(accountName)
+		if err != nil {
+			u.logger.Error("Failed to get group id",
+				slog.String("account_name", accountName),
+				slog.String("err", err.Error()),
+			)
+		}
 	}
 
 	return u.vkClipInfoProvider.GetVKClipsInfoForGroup(
