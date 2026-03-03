@@ -8,18 +8,17 @@ import (
 
 const (
 	instagramPattern = `(?:https?://)?(?:www\.)?instagram\.com/([^/?#]+)`
-	vkPattern        = `(?:https?://)?(?:www\.)?vk\.(?:com|ru)/([^/?#]+)`
+	vkPattern        = `(?:https?://)?(?:www\.)?vk\.(?:com|ru)/(?:(?:club|id)(\d+)|([^/?#]+))`
 	telegramPattern  = `(?:https?://)?(?:www\.)?t\.me/([^/?#]+)`
 	youtubePattern   = `(?:https?://)?(?:www\.)?youtube\.com/(?:c/|channel/)?(@[^/?#]+)`
 	tiktokPattern    = `(?:https?://)?(?:www\.)?tiktok\.com/@([^/?#]+)`
 )
 
 func ParseSocialAccountURL(url string) (
-	account string,
-	parsingType ParsingType,
-	err error,
+	string,
+	ParsingType,
+	error,
 ) {
-	// Паттерны для различных социальных сетей
 	patterns := map[ParsingType]*regexp.Regexp{
 		InstagramParsingType: regexp.MustCompile(instagramPattern),
 		VKParsingType:        regexp.MustCompile(vkPattern),
@@ -30,7 +29,31 @@ func ParseSocialAccountURL(url string) (
 
 	for platformName, re := range patterns {
 		matches := re.FindStringSubmatch(url)
-		if matches != nil && len(matches) > 1 && matches[1] != "" {
+		if matches == nil {
+			continue
+		}
+
+		if platformName == VKParsingType {
+			// matches[1] — числовой ID (club/id), matches[2] — slug
+			numericID := ""
+			if len(matches) > 1 && matches[1] != "" {
+				numericID = matches[1]
+			}
+			slug := ""
+			if len(matches) > 2 && matches[2] != "" {
+				slug = matches[2]
+			}
+
+			if numericID != "" {
+				return fmt.Sprintf("-%s", numericID), platformName, nil
+			}
+			if slug != "" {
+				return slug, platformName, nil
+			}
+			continue
+		}
+
+		if len(matches) > 1 && matches[1] != "" {
 			return matches[1], platformName, nil
 		}
 	}
