@@ -173,7 +173,7 @@ func (u *Usecase) ParseUrls(
 		spreadsheetID,
 		constants.DataTable,
 		"A:I",
-		models.ResultRowToInterface(results),
+		models.ResultRowsToInterface(results),
 	); err != nil {
 		u.logger.Error("ParsingUrls URLs returned an error",
 			slog.String("spreadsheet_id", spreadsheetID),
@@ -381,7 +381,7 @@ func (u *Usecase) ParseTiktokVideo(url string) *models.ResultRow {
 		return models.EmptyResultRow(url)
 	}
 
-	result, err := info.ToResultRow(url)
+	result, err := info.Data.ToResultRow(url)
 	if err != nil {
 		u.logger.Error("Error getting tiktok video info",
 			slog.String("url", url),

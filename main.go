@@ -51,6 +51,7 @@ func main() {
 		googleSheetRepo,
 		rapidRepo,
 		youtubeRepo,
+		rapidRepo,
 	)
 
 	parsingUrlsHandler := handlers.NewParsingUrlsHandler(l, parsingUrlsUsecase)

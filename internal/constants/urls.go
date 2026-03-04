@@ -12,7 +12,8 @@ const (
 const (
 	RapidInstagramGetReelInfo            = "https://real-time-instagram-scraper-api1.p.rapidapi.com/v1/media_info"
 	RapidTiktokVideoInfo                 = "https://tiktok-scraper7.p.rapidapi.com/"
-	RapidTiktokChannel                   = ""
+	RapidTiktokSearchAccount             = "https://tiktok-scraper7.p.rapidapi.com/user/search"
+	RapidTiktokUserPorts                 = "https://tiktok-scraper7.p.rapidapi.com/user/posts"
 	RapidVkGetClipsInfoForGroup          = "https://vk-scraper.p.rapidapi.com/api/v1"
 	RapidInstagramGetReelsInfoForAccount = "https://real-time-instagram-scraper-api1.p.rapidapi.com/v1/user_reels"
 )

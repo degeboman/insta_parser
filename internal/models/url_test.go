@@ -103,6 +103,15 @@ func Test_parseSocialAccountURL(t *testing.T) {
 			wantAccount:     "-522157183",
 			wantErr:         false,
 		},
+		{
+			name: "case 11",
+			args: args{
+				url: "https://www.tiktok.com/@krvchnk.ttn_mua",
+			},
+			wantParsingType: TiktokParsingType,
+			wantAccount:     "krvchnk.ttn_mua",
+			wantErr:         false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

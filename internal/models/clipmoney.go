@@ -5,6 +5,7 @@ import (
 	"inst_parser/internal/utils"
 	"log"
 	"strconv"
+	"time"
 )
 
 type ClipMoneyResultRow struct {
@@ -19,6 +20,49 @@ type ClipMoneyResultRow struct {
 	Virality    string `json:"virality"`
 	ParsingDate string `json:"parsing_date"`
 	PublishDate string `json:"publish_date"`
+}
+
+func ClipMoneyResultRowFromTiktokVideo(data []*TiktokVideo, accountUrl, accountName string) []*ClipMoneyResultRow {
+	result := make([]*ClipMoneyResultRow, len(data))
+
+	for i := range data {
+		var publishDate string
+		if data[i].CreateTime > 0 {
+			// Конвертируем Unix timestamp в time.Time
+			pubTime := time.Unix(data[i].CreateTime, 0)
+
+			// Устанавливаем временную зону Москвы
+			moscow, err := time.LoadLocation("Europe/Moscow")
+			if err != nil {
+				log.Printf("Warning: could not load Moscow timezone, using local: %v", err)
+				moscow = time.Local
+			}
+
+			// Форматируем дату в нужный формат
+			pubTimeInMoscow := pubTime.In(moscow)
+			publishDate = pubTimeInMoscow.Format("02.01.2006 15:04")
+		}
+
+		result[i] = &ClipMoneyResultRow{
+			AccountUrl:  accountUrl,
+			URL:         getTiktokUrl(accountName, data[i].VideoId),
+			Description: data[i].Title,
+			Views:       data[i].PlayCount,
+			Likes:       data[i].DiggCount,
+			Comments:    data[i].CommentCount,
+			Shares:      data[i].ShareCount,
+			ER:          utils.GetER(data[i].DiggCount, data[i].ShareCount, data[i].CommentCount, data[i].PlayCount),
+			Virality:    utils.GetVirality(data[i].ShareCount, data[i].PlayCount),
+			ParsingDate: utils.ParsingDate(),
+			PublishDate: publishDate,
+		}
+	}
+
+	return result
+}
+
+func getTiktokUrl(username, videoId string) string {
+	return fmt.Sprintf("https://www.tiktok.com/@%s/video/%s", username, videoId)
 }
 
 func ClipMoneyResultRowFromVkClipInfo(data []*VKClipInfo, accountUrl string) []*ClipMoneyResultRow {
