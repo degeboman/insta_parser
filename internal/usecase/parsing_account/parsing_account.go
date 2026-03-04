@@ -18,6 +18,7 @@ type Usecase struct {
 	dataInserter                    DataInserter
 	instagramGetReelsInfoForAccount InstagramGetReelsInfoForAccount
 	youtubeChannelShortsData        YoutubeChannelShortsData
+	tiktokDataProvider              TiktokDataProvider
 }
 
 func NewUsecase(
@@ -29,6 +30,7 @@ func NewUsecase(
 	dataInserter DataInserter,
 	instagramGetReelsInfoForAccount InstagramGetReelsInfoForAccount,
 	youtubeChannelShortsData YoutubeChannelShortsData,
+	tiktokDataProvider TiktokDataProvider,
 ) *Usecase {
 	return &Usecase{
 		logger:                          log,
@@ -39,6 +41,7 @@ func NewUsecase(
 		dataInserter:                    dataInserter,
 		instagramGetReelsInfoForAccount: instagramGetReelsInfoForAccount,
 		youtubeChannelShortsData:        youtubeChannelShortsData,
+		tiktokDataProvider:              tiktokDataProvider,
 	}
 }
 
@@ -72,6 +75,11 @@ type (
 		StartParsing(spreadsheetID string, totalURLs int) (int, error)
 		UpdateProgress(spreadsheetID string, row, progress int) error
 		FinishParsing(spreadsheetID string, row int) error
+	}
+
+	TiktokDataProvider interface {
+		GetTiktokAccountIdByUsername(username string) (string, error)
+		GetTiktokVideoByUserId(info *models.UrlInfo) ([]*models.TiktokVideo, error)
 	}
 
 	DataInserter interface {
@@ -234,6 +242,26 @@ func (u *Usecase) ParseAccount(
 			); insertErr != nil {
 				u.logger.Error("Failed to insert groups data", slog.String("err", insertErr.Error()))
 			}
+		case models.TiktokParsingType:
+			result, err := u.processTikTokAccount(
+				accountName,
+				accountUrl,
+			)
+			if err != nil {
+				u.logger.Error("Failed to get tiktok video info",
+					slog.String("account_name", accountName),
+					slog.String("err", err.Error()),
+				)
+			}
+
+			if insertErr := u.dataInserter.InsertData(
+				spreadsheetID,
+				constants.AccountTable,
+				"A:I",
+				models.TikTokVideoApiResponseToInterface(result, accountUrl.URL),
+			); insertErr != nil {
+				u.logger.Error("Failed to insert groups data", slog.String("err", insertErr.Error()))
+			}
 		}
 
 		processedCount++
@@ -298,12 +326,28 @@ func (u *Usecase) ClipMoneyParseAccount(
 		)
 		if processYoutubeErr != nil {
 			u.logger.Error("Failed to get shorts info",
-				slog.String("accountName", accountName),
+				slog.String("account_name", accountName),
 				slog.String("err", processYoutubeErr.Error()),
 			)
 		}
 
 		return models.ClipMoneyResultRowFromYoutubeShortInfoApiResponse(result, accountUrl), nil
+	case models.TiktokParsingType:
+		result, err := u.processTikTokAccount(
+			accountName,
+			&models.UrlInfo{
+				URL:   accountUrl,
+				Count: 30,
+			},
+		)
+		if err != nil {
+			u.logger.Error("Failed to get tiktok video info",
+				slog.String("account_name", accountName),
+				slog.String("err", err.Error()),
+			)
+		}
+
+		return models.ClipMoneyResultRowFromTiktokVideo(result, accountUrl, accountName), nil
 	}
 
 	return nil, fmt.Errorf("unknown parsingType: %s", parsingType)
@@ -355,6 +399,22 @@ func (u *Usecase) processYoutubeAccount(
 	accountInfo.Identification = chanelID
 
 	return u.youtubeChannelShortsData.GetShortsInfoByAccountName(accountInfo)
+}
+
+func (u *Usecase) processTikTokAccount(
+	accountName string,
+	accountUrl *models.UrlInfo,
+) ([]*models.TiktokVideo, error) {
+	// get account id
+	userID, err := u.tiktokDataProvider.GetTiktokAccountIdByUsername(accountName)
+	if err != nil {
+		return nil, err
+	}
+
+	return u.tiktokDataProvider.GetTiktokVideoByUserId(&models.UrlInfo{
+		URL:   userID,
+		Count: accountUrl.Count,
+	})
 }
 
 func getAccountInfo(

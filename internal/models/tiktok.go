@@ -2,37 +2,58 @@ package models
 
 import (
 	"fmt"
-	"inst_parser/internal/utils"
 	"log"
 	"regexp"
 	"time"
+
+	"inst_parser/internal/utils"
 )
 
+type TiktokVideo struct {
+	Id           string `json:"id"`
+	VideoId      string `json:"video_id"`
+	Title        string `json:"title"`
+	PlayCount    int64  `json:"play_count"`
+	CommentCount int64  `json:"comment_count"`
+	DiggCount    int64  `json:"digg_count"`
+	ShareCount   int64  `json:"share_count"`
+	CreateTime   int64  `json:"create_time"`
+}
 type TikTokVideoApiResponse struct {
+	Data TiktokVideo `json:"data"`
+}
+
+type TikTokPostsByUserResponse struct {
 	Data struct {
-		Id           string `json:"id"`
-		Title        string `json:"title"`
-		PlayCount    int64  `json:"play_count"`
-		CommentCount int64  `json:"comment_count"`
-		DiggCount    int64  `json:"digg_count"`
-		ShareCount   int64  `json:"share_count"`
-		CreateTime   int64  `json:"create_time"`
+		Videos []TiktokVideo `json:"videos"`
+		Cursor string        `json:"cursor"`
 	} `json:"data"`
 }
 
-func (t *TikTokVideoApiResponse) ToResultRow(url string) (*ResultRow, error) {
+type TikTokSearchAccountApiResponse struct {
+	Data struct {
+		UserList []struct {
+			User struct {
+				Id       string `json:"id"`
+				Nickname string `json:"nickname"`
+			} `json:"user"`
+		} `json:"user_list"`
+	} `json:"data"`
+}
+
+func (t *TiktokVideo) ToResultRow(url string) (*ResultRow, error) {
 	// Получаем значения с проверкой на нулевые значения
-	likes := t.Data.DiggCount
-	comments := t.Data.CommentCount
-	shares := t.Data.ShareCount
-	views := t.Data.PlayCount
+	likes := t.DiggCount
+	comments := t.CommentCount
+	shares := t.ShareCount
+	views := t.PlayCount
 
 	// Форматируем дату публикации
 	var publishDate string
 
-	if t.Data.CreateTime > 0 {
+	if t.CreateTime > 0 {
 		// Конвертируем Unix timestamp в time.Time
-		pubTime := time.Unix(t.Data.CreateTime, 0)
+		pubTime := time.Unix(t.CreateTime, 0)
 
 		// Устанавливаем временную зону Москвы
 		moscow, err := time.LoadLocation("Europe/Moscow")
@@ -49,7 +70,7 @@ func (t *TikTokVideoApiResponse) ToResultRow(url string) (*ResultRow, error) {
 	// Создаем строку результата
 	result := &ResultRow{
 		URL:         url,
-		Description: t.Data.Title,
+		Description: t.Title,
 		Views:       views,
 		Likes:       likes,
 		Comments:    comments,

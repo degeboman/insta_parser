@@ -243,3 +243,17 @@ func YoutubeShortInfoApiResponseToInterface(data []*YoutubeShortInfoApiResponse,
 
 	return values
 }
+
+func TikTokVideoApiResponseToInterface(data []*TiktokVideo, accountUrl string) [][]interface{} {
+	values := make([][]interface{}, 0, len(data))
+
+	for i := range data {
+		if data == nil {
+			continue
+		}
+		result, _ := data[i].ToResultRow(accountUrl)
+		values = append(values, ResultRowToInterface(result))
+	}
+
+	return values
+}

@@ -59,6 +59,7 @@ func (s *UrlsService) AccountUrls(
 			models.VKParsingType,
 			models.InstagramParsingType,
 			models.YoutubeParsingType,
+			models.TiktokParsingType,
 		})
 }
 

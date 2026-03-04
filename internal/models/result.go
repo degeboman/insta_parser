@@ -108,7 +108,7 @@ func ProcessInstagramResponse(apiResponse *InstagramAPIResponse, url string) (*R
 	return result, nil
 }
 
-func ResultRowToInterface(results []*ResultRow) [][]interface{} {
+func ResultRowsToInterface(results []*ResultRow) [][]interface{} {
 	values := make([][]interface{}, 0, len(results))
 
 	for i := range results {
@@ -134,4 +134,19 @@ func ResultRowToInterface(results []*ResultRow) [][]interface{} {
 	}
 
 	return values
+}
+
+func ResultRowToInterface(result *ResultRow) []interface{} {
+	return []interface{}{
+		result.URL,
+		result.Views,
+		result.Likes,
+		result.Comments,
+		result.Shares,
+		result.ER,
+		result.Virality,
+		result.ParsingDate,
+		result.PublishDate,
+		result.Description,
+	}
 }

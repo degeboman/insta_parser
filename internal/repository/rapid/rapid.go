@@ -328,6 +328,144 @@ func (r *Repository) GetTiktokVideoInfo(url string) (*models.TikTokVideoApiRespo
 	return &data, nil
 }
 
+func (r *Repository) GetTiktokVideoByUserId(info *models.UrlInfo) ([]*models.TiktokVideo, error) {
+	r.processingTiktokMu.Lock()
+	defer r.processingTiktokMu.Unlock()
+
+	if r.rapidAPIKey == "" {
+		return nil, fmt.Errorf("RAPIDAPI_KEY is not set")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	videos := make([]*models.TiktokVideo, 0, info.Count)
+	var cursor string
+
+	for len(videos) < info.Count {
+		// Создаем запрос с Query параметрами
+		req, err := http.NewRequestWithContext(
+			ctx,
+			http.MethodGet,
+			constants.RapidTiktokUserPorts,
+			nil,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %v", err)
+		}
+
+		// Добавляем query параметры
+		q := req.URL.Query()
+		q.Add("user_id", info.URL)
+		q.Add("count", "30")
+		req.URL.RawQuery = q.Encode()
+
+		// Устанавливаем заголовки
+		req.Header.Set("x-rapidapi-key", r.rapidAPIKey)
+		req.Header.Set("x-rapidapi-host", "tiktok-scraper7.p.rapidapi.com")
+		req.Header.Set("Accept", "application/json")
+
+		resp, err := r.httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to do request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		// Обрабатываем ответ
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return nil, fmt.Errorf("err http code: %d, body: %s", resp.StatusCode, string(body))
+		}
+
+		var data models.TikTokPostsByUserResponse
+		if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+			return nil, fmt.Errorf("tiktok failed to parse JSON: %v, url: %s", err, info.URL)
+		}
+
+		if len(data.Data.Videos) == 0 {
+			break
+		}
+
+		for _, video := range data.Data.Videos {
+			if len(videos) >= info.Count {
+				break
+			}
+
+			videos = append(videos, &video)
+		}
+
+		// Обновляем курсор для следующего запроса
+		cursor = data.Data.Cursor
+		if cursor == "" {
+			break
+		}
+
+		// Задержка между запросами
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	return videos, nil
+}
+
+func (r *Repository) GetTiktokAccountIdByUsername(username string) (string, error) {
+	r.processingTiktokMu.Lock()
+	defer r.processingTiktokMu.Unlock()
+
+	if r.rapidAPIKey == "" {
+		return "", fmt.Errorf("RAPIDAPI_KEY is not set")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	// Создаем запрос с Query параметрами
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		constants.RapidTiktokSearchAccount,
+		nil,
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %v", err)
+	}
+
+	// Добавляем query параметры
+	q := req.URL.Query()
+	q.Add("keywords", username)
+	q.Add("count", "5")
+	req.URL.RawQuery = q.Encode()
+
+	// Устанавливаем заголовки
+	req.Header.Set("x-rapidapi-key", r.rapidAPIKey)
+	req.Header.Set("x-rapidapi-host", "tiktok-scraper7.p.rapidapi.com")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to do request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Обрабатываем ответ
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("err http code: %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	var data models.TikTokSearchAccountApiResponse
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return "", fmt.Errorf("failed to parse JSON: %v, url: %s", err, username)
+	}
+
+	for _, account := range data.Data.UserList {
+		if account.User.Nickname == username {
+			return account.User.Id, nil
+		}
+	}
+
+	return "", fmt.Errorf("failed to find account by username: %s", username)
+}
+
 func getUserClipsEndpoint(identification, cursor string) string {
 	endpoint := fmt.Sprintf("/users/clips?owner_id=chplk:%s", identification)
 	if cursor != "" {
