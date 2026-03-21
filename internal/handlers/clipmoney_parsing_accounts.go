@@ -10,13 +10,16 @@ import (
 )
 
 type (
+	// ClipMoneyParsingAccountRequest represents the request body for parsing account
 	ClipMoneyParsingAccountRequest struct {
-		AccountUrl string `json:"account_url"`
+		AccountUrl string `json:"account_url" example:"https://vk.ru/id41699827"` // Account URL
 	}
+
+	// ClipMoneyParsingAccountResponse represents the response structure
 	ClipMoneyParsingAccountResponse struct {
-		Success bool                         `json:"success"`
-		Message string                       `json:"message"`
-		Data    []*models.ClipMoneyResultRow `json:"data"`
+		Success bool                         `json:"success" example:"true"`    // Response success status
+		Message string                       `json:"message" example:"success"` // Response message
+		Data    []*models.ClipMoneyResultRow `json:"data"`                      // Parsed account data
 	}
 )
 
@@ -29,6 +32,18 @@ func NewClipMoneyParsingAccount(logger *slog.Logger, usecase *parsing_account.Us
 	return &ClipMoneyParsingAccount{logger: logger, usecase: usecase}
 }
 
+// ClipMoneyParsingAccount godoc
+// @Summary      Parses clips, reels, videos for an account
+// @Description  Parses clips for youtube, vk account, videos for tiktok and reels for instagram
+// @Tags         ClipMoney
+// @Accept       json
+// @Produce      json
+// @Param        request body ClipMoneyParsingAccountRequest true "Account URL to parse"
+// @Success      200  {object}  ClipMoneyParsingAccountResponse  "Successfully parsed account"
+// @Failure      400  {object}  ClipMoneyParsingAccountResponse  "Invalid request format or missing account_url"
+// @Failure      405  {object}  ClipMoneyParsingAccountResponse  "Method not allowed"
+// @Failure      500  {object}  ClipMoneyParsingAccountResponse  "Internal server error"
+// @Router       /clip_money/parsing_account [post]
 func (h *ClipMoneyParsingAccount) ClipMoneyParsingAccount(w http.ResponseWriter, r *http.Request) {
 	// Разрешаем только POST метод
 	if r.Method != http.MethodPost {
@@ -51,7 +66,7 @@ func (h *ClipMoneyParsingAccount) ClipMoneyParsingAccount(w http.ResponseWriter,
 
 	// Проверяем, что tablename передан
 	if req.AccountUrl == "" {
-		resp := ParsingAccountResponse{
+		resp := ClipMoneyParsingAccountResponse{
 			Success: false,
 			Message: "spreadsheet_id is required",
 		}
@@ -69,7 +84,7 @@ func (h *ClipMoneyParsingAccount) ClipMoneyParsingAccount(w http.ResponseWriter,
 			slog.String("err", err.Error()),
 		)
 
-		resp := ParsingAccountResponse{
+		resp := ClipMoneyParsingAccountResponse{
 			Success: false,
 			Message: err.Error(),
 		}

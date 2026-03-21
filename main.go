@@ -1,10 +1,10 @@
 package main
 
 import (
-	"inst_parser/internal/repository/youtube"
 	"log"
 	"net/http"
 
+	_ "inst_parser/docs"
 	"inst_parser/internal/config"
 	"inst_parser/internal/constants"
 	"inst_parser/internal/handlers"
@@ -13,10 +13,24 @@ import (
 	"inst_parser/internal/repository/progress"
 	"inst_parser/internal/repository/rapid"
 	"inst_parser/internal/repository/vk"
+	"inst_parser/internal/repository/youtube"
 	"inst_parser/internal/usecase/parsing_account"
 	"inst_parser/internal/usecase/parsing_urls"
 	"inst_parser/internal/usecase/search_url"
+
+	httpSwagger "github.com/swaggo/http-swagger"
 )
+
+// @title           Parser social media videos
+// @version         1.0
+// @description     This is a sample server for parsing social media videos.
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   API Support
+// @contact.email  support@your-domain.com
+
+// @host      https://hammerhead-app-xw9wl.ondigitalocean.app
+// @BasePath  /clip_money/
 
 func main() {
 	cfg := config.MustLoad()
@@ -63,6 +77,10 @@ func main() {
 	http.HandleFunc(constants.ParsingAccount, parsingAccountHandler.ParsingAccount)
 	http.HandleFunc(constants.ClipMoneyParsingAccount, clipMoneyParsingAccountHandler.ClipMoneyParsingAccount)
 	http.HandleFunc(constants.ClipMoneyParsingUrl, clipMoneyParsingUrlHandler.ClipMoneyParsingUrl)
+
+	http.HandleFunc("/swagger/", httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"), // URL для вашей swagger документации
+	))
 
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal("Server failed to start:", err)

@@ -1,0 +1,265 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "This is a sample server for parsing social media videos.",
+        "title": "Parser social media videos",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "API Support",
+            "email": "support@your-domain.com"
+        },
+        "version": "1.0"
+    },
+    "host": "https://hammerhead-app-xw9wl.ondigitalocean.app",
+    "basePath": "/clip_money/",
+    "paths": {
+        "/clip_money/parsing_account": {
+            "post": {
+                "description": "Parses clips for youtube, vk account, videos for tiktok and reels for instagram",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ClipMoney"
+                ],
+                "summary": "Parses clips, reels, videos for an account",
+                "parameters": [
+                    {
+                        "description": "Account URL to parse",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ClipMoneyParsingAccountRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully parsed account",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ClipMoneyParsingAccountResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request format or missing account_url",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ClipMoneyParsingAccountResponse"
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ClipMoneyParsingAccountResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ClipMoneyParsingAccountResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/clip_money/parsing_url": {
+            "post": {
+                "description": "Parse video from tiktok, clip from youtube,vk or reel from instagram",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ClipMoney"
+                ],
+                "summary": "Parse video by URL",
+                "parameters": [
+                    {
+                        "description": "URL to parse",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ClipMoneyParsingUrlRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully parsed URL",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ClipMoneyParsingUrlResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request format or missing URL",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ClipMoneyParsingUrlResponse"
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ClipMoneyParsingUrlResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ClipMoneyParsingUrlResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "handlers.ClipMoneyParsingAccountRequest": {
+            "type": "object",
+            "properties": {
+                "account_url": {
+                    "description": "Account URL",
+                    "type": "string",
+                    "example": "https://vk.ru/id41699827"
+                }
+            }
+        },
+        "handlers.ClipMoneyParsingAccountResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "Parsed account data",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ClipMoneyResultRow"
+                    }
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string",
+                    "example": "success"
+                },
+                "success": {
+                    "description": "Response success status",
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "handlers.ClipMoneyParsingUrlRequest": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "description": "URL to parse",
+                    "type": "string",
+                    "example": "https://www.youtube.com/shorts/2EMmfcZ_UuY"
+                }
+            }
+        },
+        "handlers.ClipMoneyParsingUrlResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "Parsed video data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ResultRow"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string",
+                    "example": "URL parsed successfully"
+                },
+                "success": {
+                    "description": "Operation success status",
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "models.ClipMoneyResultRow": {
+            "type": "object",
+            "properties": {
+                "account_url": {
+                    "type": "string"
+                },
+                "comments": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "er": {
+                    "type": "string"
+                },
+                "likes": {
+                    "type": "integer"
+                },
+                "parsing_date": {
+                    "type": "string"
+                },
+                "publish_date": {
+                    "type": "string"
+                },
+                "shares": {
+                    "type": "integer"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "views": {
+                    "type": "integer"
+                },
+                "virality": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ResultRow": {
+            "type": "object",
+            "properties": {
+                "comments": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "er": {
+                    "type": "string"
+                },
+                "likes": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "parsingDate": {
+                    "type": "string"
+                },
+                "publishDate": {
+                    "type": "string"
+                },
+                "shares": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "views": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "virality": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}
