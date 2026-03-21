@@ -112,6 +112,15 @@ func Test_parseSocialAccountURL(t *testing.T) {
 			wantAccount:     "krvchnk.ttn_mua",
 			wantErr:         false,
 		},
+		{
+			name: "case 12",
+			args: args{
+				url: "https://vk.ru/id41699827",
+			},
+			wantParsingType: VKParsingType,
+			wantAccount:     "-41699827",
+			wantErr:         false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
