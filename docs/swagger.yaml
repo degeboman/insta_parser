@@ -97,7 +97,7 @@ definitions:
       virality:
         type: string
     type: object
-host: https://hammerhead-app-xw9wl.ondigitalocean.app
+host: hammerhead-app-xw9wl.ondigitalocean.app
 info:
   contact:
     email: support@your-domain.com

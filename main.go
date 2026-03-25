@@ -29,7 +29,7 @@ import (
 // @contact.name   API Support
 // @contact.email  support@your-domain.com
 
-// @host      https://hammerhead-app-xw9wl.ondigitalocean.app
+// @host     hammerhead-app-xw9wl.ondigitalocean.app
 // @BasePath  /clip_money/
 
 func main() {
