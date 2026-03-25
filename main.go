@@ -30,7 +30,7 @@ import (
 // @contact.email  support@your-domain.com
 
 // @host     hammerhead-app-xw9wl.ondigitalocean.app
-// @BasePath  /clip_money/
+// @BasePath  /
 
 func main() {
 	cfg := config.MustLoad()
