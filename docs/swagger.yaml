@@ -1,4 +1,4 @@
-basePath: /clip_money/
+basePath: /
 definitions:
   handlers.ClipMoneyParsingAccountRequest:
     properties:
