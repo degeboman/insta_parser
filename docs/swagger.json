@@ -10,7 +10,7 @@
         },
         "version": "1.0"
     },
-    "host": "https://hammerhead-app-xw9wl.ondigitalocean.app",
+    "host": "hammerhead-app-xw9wl.ondigitalocean.app",
     "basePath": "/clip_money/",
     "paths": {
         "/clip_money/parsing_account": {
