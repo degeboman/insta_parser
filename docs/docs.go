@@ -274,7 +274,7 @@ const docTemplate = `{
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Host:             "hammerhead-app-xw9wl.ondigitalocean.app",
-	BasePath:         "/clip_money/",
+	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Parser social media videos",
 	Description:      "This is a sample server for parsing social media videos.",
