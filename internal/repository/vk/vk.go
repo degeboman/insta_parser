@@ -61,24 +61,43 @@ func (v *Repository) PostInfo(postID string) (*models.VKClipInfo, error) {
 		return nil, fmt.Errorf("post not found")
 	}
 
-	var description string
+	var (
+		description     string
+		comments, views int
+	)
+
+	//todo добавить условие && response[0].Attachments[0].Type == "video"
 	if len(response[0].Attachments) > 0 {
 		description = response[0].Attachments[0].Video.Description
+		views = response[0].Attachments[0].Video.Views
+		comments = response[0].Attachments[0].Video.Comments
+
+		if views == 0 {
+			views = response[0].Views.Count
+		}
+
+		if description == "" {
+			description = response[0].Text
+		}
+
+		if comments == 0 {
+			comments = response[0].Comments.Count
+		}
 
 		return &models.VKClipInfo{
 			Description: description,
 			OwnerID:     response[0].OwnerID,
 			ClipID:      response[0].ID,
-			Views:       response[0].Attachments[0].Video.Views,
+			Views:       views,
 			Likes:       response[0].Likes.Count,
-			Comments:    response[0].Attachments[0].Video.Comments,
+			Comments:    comments,
 			Shares:      response[0].Reposts.Count,
 			Date:        time.Unix(int64(response[0].Date), 0),
 		}, nil
 	}
 
 	postInfo := &models.VKClipInfo{
-		Description: description,
+		Description: response[0].Text,
 		OwnerID:     response[0].OwnerID,
 		ClipID:      response[0].ID,
 		Views:       response[0].Views.Count,
