@@ -24,6 +24,7 @@ type VKClipInfo struct {
 	Virality    string
 	ParsingDate string
 	PublishDate string
+	DownloadURL string
 	Date        time.Time
 }
 

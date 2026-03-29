@@ -2,11 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
-	"inst_parser/internal/usecase/parsing_urls"
 	"log/slog"
 	"net/http"
 
 	"inst_parser/internal/models"
+	"inst_parser/internal/usecase/parsing_urls"
 )
 
 type (

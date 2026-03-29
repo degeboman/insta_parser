@@ -45,6 +45,27 @@ definitions:
         example: true
         type: boolean
     type: object
+  handlers.DownloadVideosRequest:
+    properties:
+      urls:
+        description: Videos URL to download
+        example:
+        - '[''https://vk.com/clip-226676596_456242668'']'
+        items:
+          type: string
+        type: array
+    type: object
+  handlers.DownloadVideosResponse:
+    properties:
+      message:
+        description: Response message
+        example: URL parsed successfully
+        type: string
+      success:
+        description: Operation success status
+        example: true
+        type: boolean
+    type: object
   models.ClipMoneyResultRow:
     properties:
       account_url:
@@ -176,4 +197,38 @@ paths:
       summary: Parse video by URL
       tags:
       - ClipMoney
+  /download_videos:
+    post:
+      consumes:
+      - application/json
+      description: Download video vk
+      parameters:
+      - description: URL to parse
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.DownloadVideosRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully parsed URL
+          schema:
+            $ref: '#/definitions/handlers.DownloadVideosResponse'
+        "400":
+          description: Invalid request format or missing URL
+          schema:
+            $ref: '#/definitions/handlers.DownloadVideosResponse'
+        "405":
+          description: Method not allowed
+          schema:
+            $ref: '#/definitions/handlers.DownloadVideosResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handlers.DownloadVideosResponse'
+      summary: Download video by URL
+      tags:
+      - download
 swagger: "2.0"

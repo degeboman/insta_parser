@@ -122,6 +122,58 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/download_videos": {
+            "post": {
+                "description": "Download video vk",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "download"
+                ],
+                "summary": "Download video by URL",
+                "parameters": [
+                    {
+                        "description": "URL to parse",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.DownloadVideosRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully parsed URL",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.DownloadVideosResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request format or missing URL",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.DownloadVideosResponse"
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.DownloadVideosResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.DownloadVideosResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -178,6 +230,36 @@ const docTemplate = `{
                         }
                     ]
                 },
+                "message": {
+                    "description": "Response message",
+                    "type": "string",
+                    "example": "URL parsed successfully"
+                },
+                "success": {
+                    "description": "Operation success status",
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "handlers.DownloadVideosRequest": {
+            "type": "object",
+            "properties": {
+                "urls": {
+                    "description": "Videos URL to download",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "['https://vk.com/clip-226676596_456242668']"
+                    ]
+                }
+            }
+        },
+        "handlers.DownloadVideosResponse": {
+            "type": "object",
+            "properties": {
                 "message": {
                     "description": "Response message",
                     "type": "string",
