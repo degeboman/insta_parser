@@ -82,6 +82,7 @@ func main() {
 	http.HandleFunc(constants.ClipMoneyParsingAccount, clipMoneyParsingAccountHandler.ClipMoneyParsingAccount)
 	http.HandleFunc(constants.ClipMoneyParsingUrl, clipMoneyParsingUrlHandler.ClipMoneyParsingUrl)
 	http.HandleFunc(constants.DownloadVideos, downloadVideosHandler.DownloadVideos)
+	http.HandleFunc(constants.DownloadVideosGet, downloadVideosHandler.DownloadVideosGet)
 
 	http.HandleFunc("/swagger/", httpSwagger.Handler(
 		httpSwagger.URL("/swagger/doc.json"), // URL для вашей swagger документации
