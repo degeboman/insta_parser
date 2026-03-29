@@ -168,6 +168,58 @@
                     }
                 }
             }
+        },
+        "/download_videos_get": {
+            "get": {
+                "description": "Download video vk",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "download"
+                ],
+                "summary": "Download video by URL",
+                "parameters": [
+                    {
+                        "description": "URL to parse",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.DownloadVideosRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully parsed URL",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.DownloadVideosResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request format or missing URL",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.DownloadVideosResponse"
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.DownloadVideosResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.DownloadVideosResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {

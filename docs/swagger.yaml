@@ -231,4 +231,38 @@ paths:
       summary: Download video by URL
       tags:
       - download
+  /download_videos_get:
+    get:
+      consumes:
+      - application/json
+      description: Download video vk
+      parameters:
+      - description: URL to parse
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.DownloadVideosRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully parsed URL
+          schema:
+            $ref: '#/definitions/handlers.DownloadVideosResponse'
+        "400":
+          description: Invalid request format or missing URL
+          schema:
+            $ref: '#/definitions/handlers.DownloadVideosResponse'
+        "405":
+          description: Method not allowed
+          schema:
+            $ref: '#/definitions/handlers.DownloadVideosResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handlers.DownloadVideosResponse'
+      summary: Download video by URL
+      tags:
+      - download
 swagger: "2.0"

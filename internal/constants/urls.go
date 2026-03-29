@@ -7,6 +7,7 @@ const (
 	ClipMoneyParsingAccount = "/clip_money/parsing_account"
 	ClipMoneyParsingUrl     = "/clip_money/parsing_url"
 	DownloadVideos          = "/download_videos"
+	DownloadVideosGet       = "/download_videos_get"
 )
 
 // rapid api urls
