@@ -2,14 +2,20 @@ package vk
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"inst_parser/internal/models"
 
 	"github.com/SevereCloud/vksdk/v2/api"
 	"github.com/SevereCloud/vksdk/v2/api/params"
+	"github.com/SevereCloud/vksdk/v2/object"
 )
 
 type Repository struct {
@@ -116,31 +122,7 @@ func (v *Repository) ClipInfo(ownerID, clipID int) (*models.VKClipInfo, error) {
 		"videos": fmt.Sprintf("%d_%d", ownerID, clipID),
 	}
 
-	var response struct {
-		Count int `json:"count"`
-		Items []struct {
-			ID          int    `json:"id"`
-			OwnerID     int    `json:"owner_id"`
-			Title       string `json:"title"`
-			Description string `json:"description"`
-			Duration    int    `json:"duration"`
-			Views       int    `json:"views"`
-			Comments    int    `json:"comments"`
-			Date        int    `json:"date"`
-			Image       []struct {
-				URL    string `json:"url"`
-				Width  int    `json:"width"`
-				Height int    `json:"height"`
-			} `json:"image"`
-			Likes struct {
-				Count int `json:"count"`
-			} `json:"likes"`
-			Reposts struct {
-				Count int `json:"count"`
-			} `json:"reposts"`
-		} `json:"items"`
-	}
-
+	var response api.VideoGetResponse
 	if err := v.vkApi.RequestUnmarshal(vkApiMethod, &response, params); err != nil {
 		return nil, fmt.Errorf("failed to get clip info: %w", err)
 	}
@@ -160,7 +142,74 @@ func (v *Repository) ClipInfo(ownerID, clipID int) (*models.VKClipInfo, error) {
 		Comments:    item.Comments,
 		Shares:      item.Reposts.Count,
 		Date:        time.Unix(int64(item.Date), 0),
+		DownloadURL: findHighQualityLink(item),
 	}
 
 	return clipInfo, nil
+}
+
+// DownloadVideo скачивает видео по ссылке в корень проекта
+func (v *Repository) DownloadVideo(name, url, dir string) (string, error) {
+	fileName := filepath.Base(url)
+	if idx := strings.Index(fileName, "?"); idx != -1 {
+		fileName = fileName[:idx]
+	}
+	if fileName == "" || fileName == "." {
+		fileName = name + ".mp4"
+	}
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", fmt.Errorf("ошибка запроса %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("сервер вернул статус %s для %s", resp.Status, url)
+	}
+
+	filePath := filepath.Join(dir, fileName)
+	outFile, err := os.Create(filePath)
+	if err != nil {
+		return "", fmt.Errorf("ошибка создания файла: %w", err)
+	}
+	defer outFile.Close()
+
+	if _, err = io.Copy(outFile, resp.Body); err != nil {
+		return "", fmt.Errorf("ошибка записи файла: %w", err)
+	}
+
+	return filePath, nil
+}
+
+func findHighQualityLink(item object.VideoVideo) string {
+	if item.Files.Mp4_2160 != "" {
+		return item.Files.Mp4_2160
+	}
+
+	if item.Files.Mp4_1440 != "" {
+		return item.Files.Mp4_1440
+	}
+
+	if item.Files.Mp4_1080 != "" {
+		return item.Files.Mp4_1080
+	}
+
+	if item.Files.Mp4_720 != "" {
+		return item.Files.Mp4_720
+	}
+
+	if item.Files.Mp4_480 != "" {
+		return item.Files.Mp4_480
+	}
+
+	if item.Files.Mp4_360 != "" {
+		return item.Files.Mp4_360
+	}
+
+	if item.Files.Mp4_240 != "" {
+		return item.Files.Mp4_240
+	}
+
+	return ""
 }

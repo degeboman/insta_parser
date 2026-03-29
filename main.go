@@ -1,6 +1,7 @@
 package main
 
 import (
+	"inst_parser/internal/usecase/download_videos"
 	"log"
 	"net/http"
 
@@ -68,15 +69,19 @@ func main() {
 		rapidRepo,
 	)
 
+	downloadVideosUsecase := download_videos.NewUsecase(l, vkRepo, vkRepo)
+
 	parsingUrlsHandler := handlers.NewParsingUrlsHandler(l, parsingUrlsUsecase)
 	clipMoneyParsingUrlHandler := handlers.NewClipMoneyParsingUrl(l, parsingUrlsUsecase)
 	parsingAccountHandler := handlers.NewParsingAccountsHandler(l, parsingAccountUsecase)
 	clipMoneyParsingAccountHandler := handlers.NewClipMoneyParsingAccount(l, parsingAccountUsecase)
+	downloadVideosHandler := handlers.NewDownloadVideos(l, downloadVideosUsecase)
 
 	http.HandleFunc(constants.ParsingUrls, parsingUrlsHandler.ParsingUrls)
 	http.HandleFunc(constants.ParsingAccount, parsingAccountHandler.ParsingAccount)
 	http.HandleFunc(constants.ClipMoneyParsingAccount, clipMoneyParsingAccountHandler.ClipMoneyParsingAccount)
 	http.HandleFunc(constants.ClipMoneyParsingUrl, clipMoneyParsingUrlHandler.ClipMoneyParsingUrl)
+	http.HandleFunc(constants.DownloadVideos, downloadVideosHandler.DownloadVideos)
 
 	http.HandleFunc("/swagger/", httpSwagger.Handler(
 		httpSwagger.URL("/swagger/doc.json"), // URL для вашей swagger документации
