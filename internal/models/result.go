@@ -2,9 +2,10 @@ package models
 
 import (
 	"fmt"
-	"inst_parser/internal/utils"
 	"log"
 	"time"
+
+	"inst_parser/internal/utils"
 )
 
 type ResultRow struct {
@@ -18,6 +19,7 @@ type ResultRow struct {
 	Virality    string
 	ParsingDate string
 	PublishDate string
+	VideoUrls   []string
 }
 
 type UrlInfo struct {
@@ -53,7 +55,11 @@ func EmptyResultRow(url string) *ResultRow {
 	}
 }
 
-func ProcessInstagramResponse(apiResponse *InstagramAPIResponse, url string) (*ResultRow, error) {
+func ProcessInstagramResponse(
+	apiResponse *InstagramAPIResponse,
+	url string,
+	needFindVideoUrl bool,
+) (*ResultRow, error) {
 	//Проверяем наличие items
 	if len(apiResponse.Data.Items) == 0 {
 		return nil, fmt.Errorf("no items found in API response")
@@ -91,6 +97,11 @@ func ProcessInstagramResponse(apiResponse *InstagramAPIResponse, url string) (*R
 		shares = &nilVal
 	}
 
+	var videoUrls []string
+	if needFindVideoUrl {
+		videoUrls = findVideoUrls(apiResponse)
+	}
+
 	// Создаем строку результата
 	result := &ResultRow{
 		URL:         url,
@@ -103,9 +114,23 @@ func ProcessInstagramResponse(apiResponse *InstagramAPIResponse, url string) (*R
 		Virality:    utils.GetVirality(*shares, views),
 		ParsingDate: utils.ParsingDate(),
 		PublishDate: publishDate,
+		VideoUrls:   videoUrls,
 	}
 
 	return result, nil
+}
+
+func findVideoUrls(response *InstagramAPIResponse) []string {
+	if len(response.Data.Items[0].VideoVersions) == 0 {
+		return nil
+	}
+
+	result := make([]string, len(response.Data.Items[0].VideoVersions))
+	for i, item := range response.Data.Items[0].VideoVersions {
+		result[i] = item.URL
+	}
+
+	return result
 }
 
 func ResultRowsToInterface(results []*ResultRow) [][]interface{} {

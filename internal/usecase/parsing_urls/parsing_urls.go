@@ -277,7 +277,7 @@ func (u *Usecase) parseInstagram(url string) *models.ResultRow {
 		return models.EmptyResultRow(url)
 	}
 
-	resultRow, err := models.ProcessInstagramResponse(data, url)
+	resultRow, err := models.ProcessInstagramResponse(data, url, false)
 	if err != nil {
 		u.logger.Error("Error processing instagram response",
 			slog.String("err", err.Error()),
