@@ -79,7 +79,7 @@ type (
 
 	TiktokDataProvider interface {
 		GetTiktokAccountIdByUsername(username string) (string, error)
-		GetTiktokVideoByUserId(info *models.UrlInfo) ([]*models.TiktokVideo, error)
+		GetTiktokVideoByUserId(info *models.UrlInfo) ([]*models.TikTokVideo, error)
 	}
 
 	DataInserter interface {
@@ -404,7 +404,7 @@ func (u *Usecase) processYoutubeAccount(
 func (u *Usecase) processTikTokAccount(
 	accountName string,
 	accountUrl *models.UrlInfo,
-) ([]*models.TiktokVideo, error) {
+) ([]*models.TikTokVideo, error) {
 	// get account id
 	userID, err := u.tiktokDataProvider.GetTiktokAccountIdByUsername(accountName)
 	if err != nil {

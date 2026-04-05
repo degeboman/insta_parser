@@ -22,10 +22,84 @@ type YoutubeShortInfoApiResponse struct {
 	AccountURL    string
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////
+////
+//// ORIGINAL API YOUTUBE VIDEOS
+////
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+type VideosAPIResponse struct {
+	Items []VideoItem `json:"items"`
+}
+
+type VideoItem struct {
+	ID         string     `json:"id"`
+	Snippet    Snippet    `json:"snippet"`
+	Statistics Statistics `json:"statistics"`
+}
+
+// VideoInfo содержит полную информацию о видео
+type VideoInfo struct {
+	ID            string `json:"videoId"`
+	Title         string `json:"title"`
+	LikeCount     int    `json:"likeCount"`
+	ViewCount     string `json:"viewCount"`
+	Description   string `json:"description"`
+	PublishedDate string `json:"publishedDate"`
+	CommentCount  string `json:"commentCount"`
+}
+
+// Snippet YouTube API response structures
+type Snippet struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	PublishedAt string `json:"publishedAt"`
+}
+
+type Statistics struct {
+	ViewCount    string `json:"viewCount"`
+	LikeCount    string `json:"likeCount"`
+	CommentCount string `json:"commentCount"`
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+////
+//// ORIGINAL API YOUTUBE CHANNEL VIDEOS
+////
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+type ChannelResponse struct {
+	Items []YouTubeChannel `json:"items"`
+}
+
+type YouTubeChannel struct {
+	ID             string `json:"id"`
+	ContentDetails struct {
+		RelatedPlaylists struct {
+			Uploads string `json:"uploads"`
+		} `json:"relatedPlaylists"`
+	} `json:"contentDetails"`
+}
+
+type PlaylistItemsResponse struct {
+	Items         []PlaylistItem `json:"items"`
+	NextPageToken string         `json:"nextPageToken"`
+}
+
+type PlaylistItem struct {
+	Snippet struct {
+		ResourceID struct {
+			VideoID string `json:"videoId"`
+		} `json:"resourceId"`
+		Title       string `json:"title"`
+		PublishedAt string `json:"publishedAt"`
+	} `json:"snippet"`
+}
+
 type YoutubeChannelShortsApiResponse struct {
 	Meta         YoutubeChannelShortsMeta    `json:"meta"`
-	Continuation string                      `json:"continuation"`
 	Data         []*YoutubeChannelShortsData `json:"data"`
+	Continuation string                      `json:"continuation"`
 	Msg          string                      `json:"msg"`
 }
 
@@ -38,7 +112,7 @@ type YoutubeChannelShortsData struct {
 	VideoId string `json:"videoId"`
 }
 
-func (y YoutubeShortInfoApiResponse) ToResultRow(originalUrl string) *ResultRow {
+func (y YoutubeShortInfoApiResponse) ToResultRow(originalUrl string) *ResultRowUrl {
 	likes := y.LikeCount
 	comments, err := strconv.Atoi(y.CommentCount)
 	if err != nil {
@@ -60,7 +134,7 @@ func (y YoutubeShortInfoApiResponse) ToResultRow(originalUrl string) *ResultRow 
 		publishDate = y.PublishedDate
 	}
 
-	result := &ResultRow{
+	result := &ResultRowUrl{
 		URL:         originalUrl,
 		Description: fmt.Sprintf("%s.%s", y.Title, y.Description),
 		Views:       int64(views),
@@ -139,4 +213,17 @@ func ExtractYouTubeShortsID(url string) (string, bool) {
 	}
 
 	return idPart, true
+}
+
+func YoutubeShortInfoApiResponseToInterface(data []*YoutubeShortInfoApiResponse, accountUrl string) [][]interface{} {
+	values := make([][]interface{}, 0, len(data))
+
+	for i := range data {
+		if data == nil {
+			continue
+		}
+		values = append(values, data[i].ToInterface(accountUrl))
+	}
+
+	return values
 }

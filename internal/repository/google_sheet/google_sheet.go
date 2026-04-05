@@ -104,7 +104,7 @@ func getSheetService() (*sheets.Service, error) {
 }
 
 func createCredentialsFile(cfg config.GoogleDriveCredentials) (err error) {
-	credentials := credentials{
+	jsonData, err := json.Marshal(credentials{
 		Type:                    cfg.Type,
 		ProjectID:               cfg.GDProjectID,
 		PrivateKeyID:            cfg.PrivateKeyID,
@@ -116,9 +116,7 @@ func createCredentialsFile(cfg config.GoogleDriveCredentials) (err error) {
 		AuthProviderX509CertURL: cfg.AuthProviderX509CertURL,
 		ClientX509CertURL:       cfg.ClientX509CertURL,
 		UniverseDomain:          cfg.UniverseDomain,
-	}
-
-	jsonData, err := json.Marshal(credentials)
+	})
 	if err != nil {
 		return err
 	}

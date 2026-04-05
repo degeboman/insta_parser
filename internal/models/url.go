@@ -61,7 +61,7 @@ func ParseSocialAccountURL(url string) (
 	return "", "", fmt.Errorf("unsupported social media URL or invalid format")
 }
 
-// ParseClipURL извлекает owner_id и clip_id из URL
+// ParseVkClipURL извлекает owner_id и clip_id из URL
 func ParseVkClipURL(url string) (int, int, error) {
 	re := regexp.MustCompile(`clip(-?\d+)_(\d+)`)
 	matches := re.FindStringSubmatch(url)

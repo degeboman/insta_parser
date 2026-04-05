@@ -65,7 +65,7 @@ type (
 	}
 
 	InstagramReelInfoProvider interface {
-		GetInstagramReelInfo(reelURL string) (*models.InstagramAPIResponse, error)
+		GetInstagramReelInfo(reelURL string) (*models.RealTimeScraperMediaInfoResponse, error)
 	}
 
 	YoutubeShortInfoProvider interface {
@@ -145,7 +145,7 @@ func (u *Usecase) ParseUrls(
 		}
 	}()
 
-	results := make([]*models.ResultRow, 0, len(urls))
+	results := make([]*models.ResultRowUrl, 0, len(urls))
 
 	var processedCount int
 	for i := 0; i < len(urls); i += batchSize {
@@ -186,7 +186,7 @@ func (u *Usecase) ParseUrls(
 
 func (u *Usecase) ClipMoneyParseUrl(
 	url string,
-) (*models.ResultRow, error) {
+) (*models.ResultRowUrl, error) {
 	u.logger.Info("ClipMoneyParseUrl started")
 	defer u.logger.Info("ClipMoneyParseUrl finished")
 
@@ -203,15 +203,15 @@ func (u *Usecase) ClipMoneyParseUrl(
 
 func (u *Usecase) processBatchUrl(
 	urls []*models.UrlInfo,
-) []*models.ResultRow {
+) []*models.ResultRowUrl {
 	const (
 		instaTimeout = 550 * time.Millisecond
 		vkTimeout    = 250 * time.Millisecond
 	)
-	results := make([]*models.ResultRow, len(urls))
+	results := make([]*models.ResultRowUrl, len(urls))
 
 	for i, url := range urls {
-		var resultRow *models.ResultRow
+		var resultRow *models.ResultRowUrl
 		switch models.ParsingTypeByUrl(url.URL) {
 		case models.InstagramParsingType:
 			time.Sleep(instaTimeout)
@@ -241,13 +241,13 @@ func (u *Usecase) processBatchUrl(
 
 func (u *Usecase) processUrl(
 	url string,
-) (*models.ResultRow, error) {
+) (*models.ResultRowUrl, error) {
 	const (
 		instaTimeout = 550 * time.Millisecond
 		vkTimeout    = 250 * time.Millisecond
 	)
 
-	var resultRow *models.ResultRow
+	var resultRow *models.ResultRowUrl
 	switch models.ParsingTypeByUrl(url) {
 	case models.InstagramParsingType:
 		time.Sleep(instaTimeout)
@@ -266,7 +266,7 @@ func (u *Usecase) processUrl(
 	return resultRow, nil
 }
 
-func (u *Usecase) parseInstagram(url string) *models.ResultRow {
+func (u *Usecase) parseInstagram(url string) *models.ResultRowUrl {
 	data, err := u.instagramReelInfoProvider.GetInstagramReelInfo(url)
 	if err != nil {
 		u.logger.Warn("Error fetching instagram data",
@@ -288,7 +288,7 @@ func (u *Usecase) parseInstagram(url string) *models.ResultRow {
 	return resultRow
 }
 
-func (u *Usecase) parseVK(url string) *models.ResultRow {
+func (u *Usecase) parseVK(url string) *models.ResultRowUrl {
 	if strings.Contains(url, "wall") {
 		return u.parseVkWall(url)
 	}
@@ -300,7 +300,7 @@ func (u *Usecase) parseVK(url string) *models.ResultRow {
 	return nil
 }
 
-func (u *Usecase) parseVkClip(url string) *models.ResultRow {
+func (u *Usecase) parseVkClip(url string) *models.ResultRowUrl {
 	ownerID, clipID, err := models.ParseVkClipURL(url)
 	if err != nil {
 		u.logger.Error("Error parsing vk clip url",
@@ -324,7 +324,7 @@ func (u *Usecase) parseVkClip(url string) *models.ResultRow {
 	return models.ProcessVKClipInfoToResultRow(url, result)
 }
 
-func (u *Usecase) parseVkWall(url string) *models.ResultRow {
+func (u *Usecase) parseVkWall(url string) *models.ResultRowUrl {
 	postID, err := models.ExtractVKPostID(url)
 	if err != nil {
 		u.logger.Error("Error extracting post ID",
@@ -348,7 +348,7 @@ func (u *Usecase) parseVkWall(url string) *models.ResultRow {
 	return models.ProcessVKClipInfoToResultRow(url, result)
 }
 
-func (u *Usecase) parseYoutubeShort(url string) *models.ResultRow {
+func (u *Usecase) parseYoutubeShort(url string) *models.ResultRowUrl {
 	shortID, ok := models.ExtractYouTubeShortsID(url)
 	if !ok {
 		u.logger.Error("failed to extract youtube short id from url",
@@ -370,7 +370,7 @@ func (u *Usecase) parseYoutubeShort(url string) *models.ResultRow {
 	return result.ToResultRow(url)
 }
 
-func (u *Usecase) ParseTiktokVideo(url string) *models.ResultRow {
+func (u *Usecase) ParseTiktokVideo(url string) *models.ResultRowUrl {
 	info, err := u.tiktokVideoInfoProvider.GetTiktokVideoInfo(url)
 	if err != nil {
 		u.logger.Error("Error getting tiktok video info",

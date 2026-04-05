@@ -11,42 +11,9 @@ import (
 	"strconv"
 	"time"
 
+	"inst_parser/internal/constants"
 	"inst_parser/internal/models"
 )
-
-// VideoInfo содержит полную информацию о видео
-type VideoInfo struct {
-	ID            string `json:"videoId"`
-	Title         string `json:"title"`
-	LikeCount     int    `json:"likeCount"`
-	ViewCount     string `json:"viewCount"`
-	Description   string `json:"description"`
-	PublishedDate string `json:"publishedDate"`
-	CommentCount  string `json:"commentCount"`
-}
-
-// Snippet YouTube API response structures
-type Snippet struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	PublishedAt string `json:"publishedAt"`
-}
-
-type Statistics struct {
-	ViewCount    string `json:"viewCount"`
-	LikeCount    string `json:"likeCount"`
-	CommentCount string `json:"commentCount"`
-}
-
-type VideoItem struct {
-	ID         string     `json:"id"`
-	Snippet    Snippet    `json:"snippet"`
-	Statistics Statistics `json:"statistics"`
-}
-
-type APIResponse struct {
-	Items []VideoItem `json:"items"`
-}
 
 // Client клиент для работы с YouTube API
 type Client struct {
@@ -61,16 +28,15 @@ func NewYouTubeClient(logger *slog.Logger, apiKey string) *Client {
 	}
 }
 
-// GetYouTubeVideoStats получает статистику для YouTube видео или Shorts
+// YoutubeShortInfo получает статистику для YouTube видео или Shorts
 func (c Client) YoutubeShortInfo(videoID string) (*models.YoutubeShortInfoApiResponse, error) {
 	// Формируем URL запроса
-	const baseURL = "https://www.googleapis.com/youtube/v3/videos"
 	params := url.Values{}
 	params.Add("part", "snippet,statistics")
 	params.Add("id", videoID)
 	params.Add("key", c.apiKey)
 
-	requestURL := fmt.Sprintf("%s?%s", baseURL, params.Encode())
+	requestURL := fmt.Sprintf("%s?%s", constants.YoutubeVideos, params.Encode())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
@@ -102,7 +68,7 @@ func (c Client) YoutubeShortInfo(videoID string) (*models.YoutubeShortInfoApiRes
 	}
 
 	// Парсим JSON
-	var apiResponse APIResponse
+	var apiResponse models.VideosAPIResponse
 	if err := json.Unmarshal(body, &apiResponse); err != nil {
 		return nil, fmt.Errorf("ошибка парсинга JSON: %w", err)
 	}
@@ -126,44 +92,13 @@ func (c Client) YoutubeShortInfo(videoID string) (*models.YoutubeShortInfoApiRes
 	}, nil
 }
 
-// Структуры для каналов
-type YouTubeChannel struct {
-	ID             string `json:"id"`
-	ContentDetails struct {
-		RelatedPlaylists struct {
-			Uploads string `json:"uploads"`
-		} `json:"relatedPlaylists"`
-	} `json:"contentDetails"`
-}
-
-type ChannelResponse struct {
-	Items []YouTubeChannel `json:"items"`
-}
-
-// Структуры для плейлистов
-type PlaylistItem struct {
-	Snippet struct {
-		ResourceID struct {
-			VideoID string `json:"videoId"`
-		} `json:"resourceId"`
-		Title       string `json:"title"`
-		PublishedAt string `json:"publishedAt"`
-	} `json:"snippet"`
-}
-
-type PlaylistResponse struct {
-	Items         []PlaylistItem `json:"items"`
-	NextPageToken string         `json:"nextPageToken"`
-}
-
 func (c Client) GetChannelIDByUsername(username string) (string, error) {
-	const baseURL = "https://www.googleapis.com/youtube/v3/channels"
 	params := url.Values{}
 	params.Add("part", "contentDetails")
-	params.Add("forHandle", username) // Для новых @handles
+	params.Add("forHandle", username)
 	params.Add("key", c.apiKey)
 
-	requestURL := fmt.Sprintf("%s?%s", baseURL, params.Encode())
+	requestURL := fmt.Sprintf("%s?%s", constants.YoutubeChannels, params.Encode())
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
@@ -188,7 +123,7 @@ func (c Client) GetChannelIDByUsername(username string) (string, error) {
 		return "", err
 	}
 
-	var channelResp ChannelResponse
+	var channelResp models.ChannelResponse
 	if err := json.Unmarshal(body, &channelResp); err != nil {
 		return "", err
 	}
@@ -202,7 +137,6 @@ func (c Client) GetChannelIDByUsername(username string) (string, error) {
 
 // GetShortsInfoByAccountName получает все видео из плейлиста
 func (c *Client) GetShortsInfoByAccountName(accountInfo *models.AccountInfo) ([]*models.YoutubeShortInfoApiResponse, error) {
-	const baseURL = "https://www.googleapis.com/youtube/v3/playlistItems"
 	pageToken := ""
 	shortsInfo := make([]*models.YoutubeShortInfoApiResponse, 0, accountInfo.Count)
 
@@ -217,7 +151,7 @@ func (c *Client) GetShortsInfoByAccountName(accountInfo *models.AccountInfo) ([]
 			params.Add("pageToken", pageToken)
 		}
 
-		requestURL := fmt.Sprintf("%s?%s", baseURL, params.Encode())
+		requestURL := fmt.Sprintf("%s?%s", constants.YoutubePlaylistItems, params.Encode())
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 		defer cancel()
 
@@ -242,7 +176,7 @@ func (c *Client) GetShortsInfoByAccountName(accountInfo *models.AccountInfo) ([]
 			return nil, fmt.Errorf("API вернул статус %d: %s", resp.StatusCode, string(body))
 		}
 
-		var playlistResp PlaylistResponse
+		var playlistResp models.PlaylistItemsResponse
 		if err := json.Unmarshal(body, &playlistResp); err != nil {
 			return nil, err
 		}

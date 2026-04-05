@@ -2,10 +2,11 @@ package models
 
 import (
 	"fmt"
-	"inst_parser/internal/utils"
 	"log"
 	"strconv"
 	"time"
+
+	"inst_parser/internal/utils"
 )
 
 type ClipMoneyResultRow struct {
@@ -22,7 +23,8 @@ type ClipMoneyResultRow struct {
 	PublishDate string `json:"publish_date"`
 }
 
-func ClipMoneyResultRowFromTiktokVideo(data []*TiktokVideo, accountUrl, accountName string) []*ClipMoneyResultRow {
+// todo remove
+func ClipMoneyResultRowFromTiktokVideo(data []*TikTokVideo, accountUrl, accountName string) []*ClipMoneyResultRow {
 	result := make([]*ClipMoneyResultRow, len(data))
 
 	for i := range data {
@@ -30,17 +32,7 @@ func ClipMoneyResultRowFromTiktokVideo(data []*TiktokVideo, accountUrl, accountN
 		if data[i].CreateTime > 0 {
 			// Конвертируем Unix timestamp в time.Time
 			pubTime := time.Unix(data[i].CreateTime, 0)
-
-			// Устанавливаем временную зону Москвы
-			moscow, err := time.LoadLocation("Europe/Moscow")
-			if err != nil {
-				log.Printf("Warning: could not load Moscow timezone, using local: %v", err)
-				moscow = time.Local
-			}
-
-			// Форматируем дату в нужный формат
-			pubTimeInMoscow := pubTime.In(moscow)
-			publishDate = pubTimeInMoscow.Format("02.01.2006 15:04")
+			publishDate = utils.PublishDate(pubTime)
 		}
 
 		result[i] = &ClipMoneyResultRow{

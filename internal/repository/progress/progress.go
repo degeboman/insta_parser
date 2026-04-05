@@ -16,6 +16,9 @@ type Tracker struct {
 	sheetsService *sheets.Service
 }
 
+//todo refactor with journal
+//todo add schedule
+
 func NewProgressTracker(sheetsService *sheets.Service) *Tracker {
 	return &Tracker{
 		sheetsService: sheetsService,

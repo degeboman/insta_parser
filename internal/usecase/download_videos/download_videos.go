@@ -23,7 +23,7 @@ type (
 	}
 
 	InstagramReelInfoProvider interface {
-		GetInstagramReelInfo(reelURL string) (*models.InstagramAPIResponse, error)
+		GetInstagramReelInfo(reelURL string) (*models.RealTimeScraperMediaInfoResponse, error)
 	}
 )
 
