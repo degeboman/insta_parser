@@ -21,23 +21,30 @@ type (
 	VkClipInfoProvider interface {
 		ClipInfo(ownerID, clipID int) (*models.VKClipInfo, error)
 	}
+
+	InstagramReelInfoProvider interface {
+		GetInstagramReelInfo(reelURL string) (*models.RealTimeScraperMediaInfoResponse, error)
+	}
 )
 
 type Usecase struct {
-	logger             *slog.Logger
-	videoDownloader    VideoDownloader
-	vkClipInfoProvider VkClipInfoProvider
+	logger                    *slog.Logger
+	videoDownloader           VideoDownloader
+	vkClipInfoProvider        VkClipInfoProvider
+	instagramReelInfoProvider InstagramReelInfoProvider
 }
 
 func NewUsecase(
 	logger *slog.Logger,
 	videoDownloader VideoDownloader,
 	vkClipInfoProvider VkClipInfoProvider,
+	InstagramReelInfoProvider InstagramReelInfoProvider,
 ) *Usecase {
 	return &Usecase{
-		logger:             logger,
-		videoDownloader:    videoDownloader,
-		vkClipInfoProvider: vkClipInfoProvider,
+		logger:                    logger,
+		videoDownloader:           videoDownloader,
+		vkClipInfoProvider:        vkClipInfoProvider,
+		instagramReelInfoProvider: InstagramReelInfoProvider,
 	}
 }
 
@@ -111,40 +118,112 @@ func (u *Usecase) DownloadVideos(urls []string) ([]byte, []string, error) {
 }
 
 func (u *Usecase) processOneUrl(url, dir string, parsingType models.ParsingType) (string, error) {
-	var path string
+	var (
+		path string
+		err  error
+	)
 
 	switch parsingType {
 	case models.VKParsingType:
-		ownerID, clipID, err := models.ParseVkClipURL(url)
+		path, err = u.processVkVideo(url, dir)
 		if err != nil {
-			u.logger.Error("Error parsing vk clip url",
-				slog.String("url", url),
-				slog.String("err", err.Error()),
-			)
-
-			return "", fmt.Errorf("error parsing vk clip url, err: %v", err)
+			return "", err
 		}
-
-		clipInfo, err := u.vkClipInfoProvider.ClipInfo(ownerID, clipID)
+	case models.InstagramParsingType:
+		path, err = u.processInstagramVideo(url, dir)
 		if err != nil {
-			u.logger.Error("Error getting clip info",
-				slog.String("url", url),
-				slog.String("err", err.Error()),
-			)
-
-			return "", fmt.Errorf("error getting clip info, err: %v", err)
+			return "", err
 		}
+	}
 
-		path, err = u.videoDownloader.DownloadVideo(strconv.Itoa(clipID), clipInfo.DownloadURL, dir)
+	return path, nil
+}
+
+func (u *Usecase) processVkVideo(url, dir string) (string, error) {
+	ownerID, clipID, err := models.ParseVkClipURL(url)
+	if err != nil {
+		u.logger.Error("Error parsing vk clip url",
+			slog.String("url", url),
+			slog.String("err", err.Error()),
+		)
+
+		return "", fmt.Errorf("error parsing vk clip url, err: %v", err)
+	}
+
+	clipInfo, err := u.vkClipInfoProvider.ClipInfo(ownerID, clipID)
+	if err != nil {
+		u.logger.Error("Error getting clip info",
+			slog.String("url", url),
+			slog.String("err", err.Error()),
+		)
+
+		return "", fmt.Errorf("error getting clip info, err: %v", err)
+	}
+
+	path, err := u.videoDownloader.DownloadVideo(strconv.Itoa(clipID), clipInfo.DownloadURL, dir)
+	if err != nil {
+		u.logger.Error("Error downloading video",
+			slog.String("url", url),
+			slog.String("err", err.Error()),
+		)
+
+		return "", fmt.Errorf("error downloading video, err: %v", err)
+	}
+
+	return path, nil
+}
+
+func (u *Usecase) processInstagramVideo(url, dir string) (string, error) {
+	apiResp, err := u.instagramReelInfoProvider.GetInstagramReelInfo(url)
+	if err != nil {
+		u.logger.Error("Error getting instagram reel info",
+			slog.String("url", url),
+			slog.String("err", err.Error()),
+		)
+		return "", err
+	}
+
+	resultRow, err := models.ProcessInstagramResponse(apiResp, url, true)
+
+	if resultRow.VideoUrls == nil {
+		// find video ur
+		u.logger.Error("Error getting instagram reel video urls",
+			slog.String("url", url),
+			slog.String("err", err.Error()),
+		)
+		return "", fmt.Errorf("error getting instagram video urls: %v", resultRow.VideoUrls)
+	}
+
+	var path string
+	for _, item := range resultRow.VideoUrls {
+		path, err = u.videoDownloader.DownloadVideo(
+			resultRow.URL,
+			item,
+			dir,
+		)
 		if err != nil {
 			u.logger.Error("Error downloading video",
 				slog.String("url", url),
 				slog.String("err", err.Error()),
 			)
 
-			return "", fmt.Errorf("error downloading video, err: %v", err)
+			continue
+		}
+
+		if path != "" {
+			break
 		}
 	}
+
+	//path, err := u.videoDownloader.DownloadVideo(info.Data.Items[0].ID, clipInfo.DownloadURL, dir)
+	//if err != nil {
+	//	u.logger.Error("Error downloading video",
+	//		slog.String("url", url),
+	//		slog.String("err", err.Error()),
+	//	)
+	//
+	//	return "", fmt.Errorf("error downloading video, err: %v", err)
+	//}
 
 	return path, nil
 }

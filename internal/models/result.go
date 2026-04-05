@@ -2,23 +2,14 @@ package models
 
 import (
 	"fmt"
-	"inst_parser/internal/utils"
 	"log"
 	"time"
+
+	"inst_parser/internal/constants"
+	"inst_parser/internal/utils"
 )
 
-type ResultRow struct {
-	URL         string
-	Description string
-	Views       int64
-	Likes       int64
-	Comments    int64
-	Shares      int64
-	ER          string
-	Virality    string
-	ParsingDate string
-	PublishDate string
-}
+const defaultReelCount = 12
 
 type UrlInfo struct {
 	URL   string
@@ -28,18 +19,19 @@ type UrlInfo struct {
 func DefaultUrlInfo(url string) *UrlInfo {
 	return &UrlInfo{
 		URL:   url,
-		Count: 12,
+		Count: defaultReelCount,
 	}
 }
 
-func EmptyResultRow(url string) *ResultRow {
+func EmptyResultRow(url string) *ResultRowUrl {
 	moscow, err := time.LoadLocation("Europe/Moscow")
 	if err != nil {
 		log.Printf("Warning: could not load Moscow timezone, using local: %v", err)
 		moscow = time.Local
 	}
-	parsingDate := time.Now().In(moscow).Format("02.01.2006 15:04")
-	return &ResultRow{
+	parsingDate := time.Now().In(moscow).Format(constants.ParsingDateFormat)
+
+	return &ResultRowUrl{
 		URL:         url,
 		Description: "",
 		Views:       0,
@@ -53,7 +45,11 @@ func EmptyResultRow(url string) *ResultRow {
 	}
 }
 
-func ProcessInstagramResponse(apiResponse *InstagramAPIResponse, url string) (*ResultRow, error) {
+func ProcessInstagramResponse(
+	apiResponse *RealTimeScraperMediaInfoResponse,
+	url string,
+	needFindVideoUrl bool,
+) (*ResultRowUrl, error) {
 	//Проверяем наличие items
 	if len(apiResponse.Data.Items) == 0 {
 		return nil, fmt.Errorf("no items found in API response")
@@ -73,17 +69,7 @@ func ProcessInstagramResponse(apiResponse *InstagramAPIResponse, url string) (*R
 	if item.TakenAt > 0 {
 		// Конвертируем Unix timestamp в time.Time
 		pubTime := time.Unix(item.TakenAt, 0)
-
-		// Устанавливаем временную зону Москвы
-		moscow, err := time.LoadLocation("Europe/Moscow")
-		if err != nil {
-			log.Printf("Warning: could not load Moscow timezone, using local: %v", err)
-			moscow = time.Local
-		}
-
-		// Форматируем дату в нужный формат
-		pubTimeInMoscow := pubTime.In(moscow)
-		publishDate = pubTimeInMoscow.Format("02.01.2006 15:04")
+		publishDate = utils.PublishDate(pubTime)
 	}
 
 	if shares == nil {
@@ -91,8 +77,13 @@ func ProcessInstagramResponse(apiResponse *InstagramAPIResponse, url string) (*R
 		shares = &nilVal
 	}
 
+	videoUrls := make([]string, len(item.VideoVersions))
+	if needFindVideoUrl {
+		videoUrls = findVideoUrls(apiResponse)
+	}
+
 	// Создаем строку результата
-	result := &ResultRow{
+	result := &ResultRowUrl{
 		URL:         url,
 		Description: item.Caption.Text,
 		Views:       views,
@@ -103,12 +94,26 @@ func ProcessInstagramResponse(apiResponse *InstagramAPIResponse, url string) (*R
 		Virality:    utils.GetVirality(*shares, views),
 		ParsingDate: utils.ParsingDate(),
 		PublishDate: publishDate,
+		VideoUrls:   videoUrls,
 	}
 
 	return result, nil
 }
 
-func ResultRowsToInterface(results []*ResultRow) [][]interface{} {
+func findVideoUrls(response *RealTimeScraperMediaInfoResponse) []string {
+	if len(response.Data.Items[0].VideoVersions) == 0 {
+		return nil
+	}
+
+	result := make([]string, len(response.Data.Items[0].VideoVersions))
+	for i, item := range response.Data.Items[0].VideoVersions {
+		result[i] = item.URL
+	}
+
+	return result
+}
+
+func ResultRowsToInterface(results []*ResultRowUrl) [][]interface{} {
 	values := make([][]interface{}, 0, len(results))
 
 	for i := range results {
@@ -136,7 +141,7 @@ func ResultRowsToInterface(results []*ResultRow) [][]interface{} {
 	return values
 }
 
-func ResultRowToInterface(result *ResultRow) []interface{} {
+func ResultRowToInterface(result *ResultRowUrl) []interface{} {
 	return []interface{}{
 		result.URL,
 		result.Views,

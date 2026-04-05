@@ -1,7 +1,7 @@
 package main
 
 import (
-	"inst_parser/internal/usecase/download_videos"
+	"inst_parser/internal/repository/video_downloader"
 	"log"
 	"net/http"
 
@@ -15,6 +15,7 @@ import (
 	"inst_parser/internal/repository/rapid"
 	"inst_parser/internal/repository/vk"
 	"inst_parser/internal/repository/youtube"
+	"inst_parser/internal/usecase/download_videos"
 	"inst_parser/internal/usecase/parsing_account"
 	"inst_parser/internal/usecase/parsing_urls"
 	"inst_parser/internal/usecase/search_url"
@@ -45,6 +46,7 @@ func main() {
 	rapidRepo := rapid.NewRepository(cfg.Rapid.ApiKey, l)
 	vkRepo := vk.NewRepository(l, cfg.VK.Token)
 	youtubeRepo := youtube.NewYouTubeClient(l, cfg.Youtube.YoutubeToken)
+	videoDownloaderRepo := video_downloader.NewRepository()
 
 	parsingUrlsUsecase := parsing_urls.NewUsecase(
 		l,
@@ -69,7 +71,7 @@ func main() {
 		rapidRepo,
 	)
 
-	downloadVideosUsecase := download_videos.NewUsecase(l, vkRepo, vkRepo)
+	downloadVideosUsecase := download_videos.NewUsecase(l, videoDownloaderRepo, vkRepo, rapidRepo)
 
 	parsingUrlsHandler := handlers.NewParsingUrlsHandler(l, parsingUrlsUsecase)
 	clipMoneyParsingUrlHandler := handlers.NewClipMoneyParsingUrl(l, parsingUrlsUsecase)

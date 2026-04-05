@@ -17,9 +17,9 @@ type (
 
 	// ClipMoneyParsingUrlResponse represents the response structure for URL parsing
 	ClipMoneyParsingUrlResponse struct {
-		Success bool              `json:"success" example:"true"`                    // Operation success status
-		Message string            `json:"message" example:"URL parsed successfully"` // Response message
-		Data    *models.ResultRow `json:"data"`                                      // Parsed video data
+		Success bool                 `json:"success" example:"true"`                    // Operation success status
+		Message string               `json:"message" example:"URL parsed successfully"` // Response message
+		Data    *models.ResultRowUrl `json:"data"`                                      // Parsed video data
 	}
 )
 

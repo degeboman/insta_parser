@@ -45,8 +45,8 @@ func (r *Repository) GetInstagramReelsInfoForAccount(info *models.AccountInfo) (
 	var maxID string
 
 	for len(reels) < info.Count {
-		apiResp, err := r.getReelsForUser(
-			getInstagramReelsEndpoint(info.Identification, maxID),
+		apiResp, err := r.getRapidRealTimeInstagramScraperUserReels(
+			getRapidRealTimeInstagramScraperUserReelsEndpoint(info.Identification, maxID),
 		)
 		if err != nil {
 			return []*models.InstagramReelInfo{models.EmptyReelInfo(info.AccountUrl)},
@@ -80,7 +80,9 @@ func (r *Repository) GetInstagramReelsInfoForAccount(info *models.AccountInfo) (
 	return reels, nil
 }
 
-func (r *Repository) getReelsForUser(endpoint string) (*models.GetInstagramReelsAPIResponse, error) {
+func (r *Repository) getRapidRealTimeInstagramScraperUserReels(
+	endpoint string,
+) (*models.GetRapidRealTimeInstagramScraperUserReelsResponse, error) {
 	if r.rapidAPIKey == "" {
 		return nil, fmt.Errorf("RAPIDAPI_KEY is not set")
 	}
@@ -118,7 +120,7 @@ func (r *Repository) getReelsForUser(endpoint string) (*models.GetInstagramReels
 		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
-	var apiResp models.GetInstagramReelsAPIResponse
+	var apiResp models.GetRapidRealTimeInstagramScraperUserReelsResponse
 	if err := json.Unmarshal(body, &apiResp); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
@@ -139,8 +141,8 @@ func (r *Repository) GetVKClipsInfoForGroup(info *models.AccountInfo) ([]*models
 	var cursor string
 
 	for len(clips) < info.Count {
-		apiResp, err := r.getClipsInfoForGroup(
-			getUserClipsEndpoint(info.Identification, cursor),
+		apiResp, err := r.getVkClipsInfoForGroup(
+			getVkUserClipsEndpoint(info.Identification, cursor),
 		)
 		if err != nil {
 			return []*models.VKClipInfo{models.EmptyClipInfo(info.AccountUrl)},
@@ -174,7 +176,7 @@ func (r *Repository) GetVKClipsInfoForGroup(info *models.AccountInfo) ([]*models
 	return clips, nil
 }
 
-func (r *Repository) getClipsInfoForGroup(endpoint string) (*models.GetClipsForGroupAPIResponse, error) {
+func (r *Repository) getVkClipsInfoForGroup(endpoint string) (*models.RapidVkScraperUserClipsResponse, error) {
 	if r.rapidAPIKey == "" {
 		return nil, fmt.Errorf("RAPIDAPI_KEY is not set")
 	}
@@ -185,7 +187,7 @@ func (r *Repository) getClipsInfoForGroup(endpoint string) (*models.GetClipsForG
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodGet,
-		fmt.Sprintf("%s%s", constants.RapidVkGetClipsInfoForGroup, endpoint),
+		fmt.Sprintf("%s%s", constants.RapidVkScraper, endpoint),
 		nil,
 	)
 	if err != nil {
@@ -212,7 +214,7 @@ func (r *Repository) getClipsInfoForGroup(endpoint string) (*models.GetClipsForG
 		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
-	var apiResp models.GetClipsForGroupAPIResponse
+	var apiResp models.RapidVkScraperUserClipsResponse
 	if err := json.Unmarshal(body, &apiResp); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
@@ -224,7 +226,7 @@ func (r *Repository) getClipsInfoForGroup(endpoint string) (*models.GetClipsForG
 	return &apiResp, nil
 }
 
-func (r *Repository) GetInstagramReelInfo(reelURL string) (*models.InstagramAPIResponse, error) {
+func (r *Repository) GetInstagramReelInfo(reelURL string) (*models.RealTimeScraperMediaInfoResponse, error) {
 	r.processingInstagramMu.Lock()
 	defer r.processingInstagramMu.Unlock()
 
@@ -239,7 +241,7 @@ func (r *Repository) GetInstagramReelInfo(reelURL string) (*models.InstagramAPIR
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodGet,
-		constants.RapidInstagramGetReelInfo,
+		constants.RapidRealTimeInstagramScraperMediaInfo,
 		nil,
 	)
 	if err != nil {
@@ -268,12 +270,12 @@ func (r *Repository) GetInstagramReelInfo(reelURL string) (*models.InstagramAPIR
 		return nil, fmt.Errorf("err http code: %d, body: %s", resp.StatusCode, string(body))
 	}
 
-	var data models.InstagramAPIResponse
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+	var result models.RealTimeScraperMediaInfoResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON: %v, url: %s", err, reelURL)
 	}
 
-	return &data, nil
+	return &result, nil
 }
 
 func (r *Repository) GetTiktokVideoInfo(url string) (*models.TikTokVideoApiResponse, error) {
@@ -291,7 +293,7 @@ func (r *Repository) GetTiktokVideoInfo(url string) (*models.TikTokVideoApiRespo
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodGet,
-		constants.RapidTiktokVideoInfo,
+		constants.RapidTiktokScraper,
 		nil,
 	)
 	if err != nil {
@@ -328,7 +330,7 @@ func (r *Repository) GetTiktokVideoInfo(url string) (*models.TikTokVideoApiRespo
 	return &data, nil
 }
 
-func (r *Repository) GetTiktokVideoByUserId(info *models.UrlInfo) ([]*models.TiktokVideo, error) {
+func (r *Repository) GetTiktokVideoByUserId(info *models.UrlInfo) ([]*models.TikTokVideo, error) {
 	r.processingTiktokMu.Lock()
 	defer r.processingTiktokMu.Unlock()
 
@@ -339,7 +341,7 @@ func (r *Repository) GetTiktokVideoByUserId(info *models.UrlInfo) ([]*models.Tik
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
-	videos := make([]*models.TiktokVideo, 0, info.Count)
+	videos := make([]*models.TikTokVideo, 0, info.Count)
 	var cursor string
 
 	for len(videos) < info.Count {
@@ -422,7 +424,7 @@ func (r *Repository) GetTiktokAccountIdByUsername(username string) (string, erro
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodGet,
-		constants.RapidTiktokSearchAccount,
+		constants.RapidTiktokUserSearch,
 		nil,
 	)
 	if err != nil {
@@ -452,7 +454,7 @@ func (r *Repository) GetTiktokAccountIdByUsername(username string) (string, erro
 		return "", fmt.Errorf("err http code: %d, body: %s", resp.StatusCode, string(body))
 	}
 
-	var data models.TikTokSearchAccountApiResponse
+	var data models.TikTokUserSearchResponse
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		return "", fmt.Errorf("failed to parse JSON: %v, url: %s", err, username)
 	}
@@ -466,7 +468,7 @@ func (r *Repository) GetTiktokAccountIdByUsername(username string) (string, erro
 	return "", fmt.Errorf("failed to find account by username: %s", username)
 }
 
-func getUserClipsEndpoint(identification, cursor string) string {
+func getVkUserClipsEndpoint(identification, cursor string) string {
 	endpoint := fmt.Sprintf("/users/clips?owner_id=chplk:%s", identification)
 	if cursor != "" {
 		endpoint += fmt.Sprintf("&cursor=%s", cursor)
@@ -475,7 +477,7 @@ func getUserClipsEndpoint(identification, cursor string) string {
 	return endpoint
 }
 
-func getInstagramReelsEndpoint(username string, maxID string) string {
+func getRapidRealTimeInstagramScraperUserReelsEndpoint(username, maxID string) string {
 	params := url.Values{}
 	params.Add("username_or_id", username)
 
@@ -483,5 +485,5 @@ func getInstagramReelsEndpoint(username string, maxID string) string {
 		params.Add("max_id", maxID)
 	}
 
-	return fmt.Sprintf("%s?%s", constants.RapidInstagramGetReelsInfoForAccount, params.Encode())
+	return fmt.Sprintf("%s?%s", constants.RapidRealTimeInstagramScraperUserReels, params.Encode())
 }

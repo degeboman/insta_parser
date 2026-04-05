@@ -12,7 +12,7 @@ func TestService_InsertData(t *testing.T) {
 	type args struct {
 		spreadsheetID string
 		sheetName     string
-		data          []*models.ResultRow
+		data          []*models.ResultRowUrl
 	}
 
 	cfg := config.MustLoadForTest()

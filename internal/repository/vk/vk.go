@@ -2,13 +2,8 @@ package vk
 
 import (
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"inst_parser/internal/models"
@@ -31,7 +26,7 @@ func NewRepository(logger *slog.Logger, accessToken string) *Repository {
 	}
 }
 
-func (v *Repository) GroupID(groupName string) (string, error) {
+func (r *Repository) GroupID(groupName string) (string, error) {
 	const vkApiMethod = "groups.getById"
 	var groupInfo []struct {
 		ID int `json:"id"`
@@ -41,8 +36,7 @@ func (v *Repository) GroupID(groupName string) (string, error) {
 		"group_id": groupName,
 	}
 
-	err := v.vkApi.RequestUnmarshal(vkApiMethod, &groupInfo, params)
-	if err != nil {
+	if err := r.vkApi.RequestUnmarshal(vkApiMethod, &groupInfo, params); err != nil {
 		return "", fmt.Errorf("failed to get group info: group_id = %s, err = %w", groupName, err)
 	}
 
@@ -53,12 +47,12 @@ func (v *Repository) GroupID(groupName string) (string, error) {
 	return strconv.Itoa(-groupInfo[0].ID), nil // Для групп ID отрицательный
 }
 
-func (v *Repository) PostInfo(postID string) (*models.VKClipInfo, error) {
+func (r *Repository) PostInfo(postID string) (*models.VKClipInfo, error) {
 	builder := params.NewWallGetByIDBuilder()
 	builder.Posts([]string{postID})
 
 	//var response models.VKWallResponse
-	response, err := v.vkApi.WallGetByID(builder.Params)
+	response, err := r.vkApi.WallGetByID(builder.Params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get clip info: %w", err)
 	}
@@ -71,6 +65,12 @@ func (v *Repository) PostInfo(postID string) (*models.VKClipInfo, error) {
 		description     string
 		comments, views int
 	)
+
+	//if len(response[0].Attachments) > 0 {
+	//	if response[0].Attachments[0].Type == "video" {
+	//
+	//	}
+	//}
 
 	//todo добавить условие && response[0].Attachments[0].Type == "video"
 	if len(response[0].Attachments) > 0 {
@@ -116,14 +116,15 @@ func (v *Repository) PostInfo(postID string) (*models.VKClipInfo, error) {
 	return postInfo, nil
 }
 
-func (v *Repository) ClipInfo(ownerID, clipID int) (*models.VKClipInfo, error) {
+func (r *Repository) ClipInfo(ownerID, clipID int) (*models.VKClipInfo, error) {
 	const vkApiMethod = "video.get"
 	params := api.Params{
-		"videos": fmt.Sprintf("%d_%d", ownerID, clipID),
+		"videos":   fmt.Sprintf("%d_%d", ownerID, clipID),
+		"extended": 1,
 	}
 
 	var response api.VideoGetResponse
-	if err := v.vkApi.RequestUnmarshal(vkApiMethod, &response, params); err != nil {
+	if err := r.vkApi.RequestUnmarshal(vkApiMethod, &response, params); err != nil {
 		return nil, fmt.Errorf("failed to get clip info: %w", err)
 	}
 
@@ -146,40 +147,6 @@ func (v *Repository) ClipInfo(ownerID, clipID int) (*models.VKClipInfo, error) {
 	}
 
 	return clipInfo, nil
-}
-
-// DownloadVideo скачивает видео по ссылке в корень проекта
-func (v *Repository) DownloadVideo(name, url, dir string) (string, error) {
-	fileName := filepath.Base(url)
-	if idx := strings.Index(fileName, "?"); idx != -1 {
-		fileName = fileName[:idx]
-	}
-	if fileName == "" || fileName == "." {
-		fileName = name + ".mp4"
-	}
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return "", fmt.Errorf("ошибка запроса %s: %w", url, err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("сервер вернул статус %s для %s", resp.Status, url)
-	}
-
-	filePath := filepath.Join(dir, fileName)
-	outFile, err := os.Create(filePath)
-	if err != nil {
-		return "", fmt.Errorf("ошибка создания файла: %w", err)
-	}
-	defer outFile.Close()
-
-	if _, err = io.Copy(outFile, resp.Body); err != nil {
-		return "", fmt.Errorf("ошибка записи файла: %w", err)
-	}
-
-	return filePath, nil
 }
 
 func findHighQualityLink(item object.VideoVideo) string {
