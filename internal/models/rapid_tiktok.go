@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"time"
 
 	"inst_parser/internal/utils"
@@ -26,6 +27,9 @@ type TikTokVideo struct {
 	DiggCount    int64  `json:"digg_count"`
 	ShareCount   int64  `json:"share_count"`
 	CreateTime   int64  `json:"create_time"`
+	Author       struct {
+		UniqueID string `json:"unique_id"`
+	} `json:"author"`
 }
 type TikTokVideoApiResponse struct {
 	Data TikTokVideo `json:"data"`
@@ -56,6 +60,7 @@ func (t *TikTokVideo) ToResultRow(url string) (*ResultRowUrl, error) {
 
 	// Создаем строку результата
 	result := &ResultRowUrl{
+		OwnerUrl:    fmt.Sprintf("https://www.tiktok.com/@%s", t.Author.UniqueID),
 		URL:         url,
 		Description: t.Title,
 		Views:       views,
