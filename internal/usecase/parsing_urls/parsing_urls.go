@@ -321,6 +321,19 @@ func (u *Usecase) parseVkClip(url string) *models.ResultRowUrl {
 		return models.EmptyResultRow(url)
 	}
 
+	if result.PostID != 0 && result.ErID == "" {
+		postResult, err := u.vkInfoProvider.PostInfo(fmt.Sprintf("%d_%d", ownerID, result.PostID))
+		if err != nil {
+			u.logger.Error("Error getting post info",
+				slog.String("url", url),
+				slog.Int("post_id", result.PostID),
+				slog.String("err", err.Error()),
+			)
+		}
+
+		result.ErID = postResult.ErID
+	}
+
 	return models.ProcessVKClipInfoToResultRow(url, result)
 }
 

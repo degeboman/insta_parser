@@ -8,10 +8,29 @@ import (
 
 var moscow, _ = time.LoadLocation("Europe/Moscow")
 
+var validDateFormats = []string{
+	time.RFC3339,
+	constants.YoutubeParsingDateFormat,
+	constants.ParsingDateFormat,
+}
+
 func ParsingDate() string {
-	return time.Now().In(moscow).Format(constants.ParsingDateFormat)
+	return time.Now().In(moscow).Format(time.DateTime)
+}
+
+func FormatParsingDate(date string) string {
+	for _, format := range validDateFormats {
+		t, err := time.Parse(format, date)
+		if err != nil {
+			continue
+		}
+
+		return t.Format(constants.ParsingDateFormat)
+	}
+
+	return ""
 }
 
 func PublishDate(pubTime time.Time) string {
-	return pubTime.In(moscow).Format(constants.ParsingDateFormat)
+	return pubTime.In(moscow).Format(time.DateTime)
 }

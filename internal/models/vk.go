@@ -7,7 +7,35 @@ import (
 
 	"inst_parser/internal/constants"
 	"inst_parser/internal/utils"
+
+	"github.com/SevereCloud/vksdk/v3/object"
 )
+
+type VideoGetResponse struct {
+	Count int `json:"count"`
+	Items []struct {
+		object.VideoVideo
+		OrdInfo struct {
+			Advertisers []AdvertiserInfo `json:"advertisers"`
+		} `json:"ord_info"`
+		PostID int `json:"wall_post_id"`
+	} `json:"items"`
+}
+
+type AdvertiserInfo struct {
+	ErID string `json:"er_id"`
+	Url  string `json:"url"`
+}
+
+type WallGetByIDResponse struct {
+	Items []struct {
+		object.WallWallpost
+		AuthorAd struct {
+			AdvertiserInfoUrl string `json:"advertiser_info_url"`
+			AdMarker          string `json:"ad_marker"`
+		} `json:"author_ad"`
+	} `json:"items"`
+}
 
 type VKClipInfo struct {
 	OwnerID     int
@@ -24,6 +52,9 @@ type VKClipInfo struct {
 	ParsingDate string
 	PublishDate string
 	DownloadURL string
+	OwnerUrl    string
+	ErID        string
+	PostID      int
 	Date        time.Time
 }
 
@@ -116,6 +147,8 @@ func ProcessVKClipInfoToResultRow(url string, result *VKClipInfo) *ResultRowUrl 
 		Virality:    utils.GetVirality(int64(result.Shares), int64(result.Views)),
 		PublishDate: utils.PublishDate(result.Date),
 		ParsingDate: utils.ParsingDate(),
+		OwnerUrl:    result.OwnerUrl,
+		ErID:        result.ErID,
 	}
 }
 

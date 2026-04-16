@@ -19,6 +19,8 @@ type ResultRowUrl struct {
 	ParsingDate string // Дата обновления
 	PublishDate string // Дата публикации
 	VideoUrls   []string
+	OwnerUrl    string // ссылка на канал
+	ErID        string // айди рекламы, только для вк
 }
 
 type ResultRowAccount struct {
