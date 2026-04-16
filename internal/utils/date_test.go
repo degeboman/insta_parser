@@ -25,6 +25,14 @@ func TestFormatParsingDate(t *testing.T) {
 			},
 			want: "14.04.2026 11:10",
 		},
+		//
+		{
+			name: "case 3",
+			args: args{
+				date: "2026-04-08T16:02:48Z",
+			},
+			want: "08.04.2026 16:02",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

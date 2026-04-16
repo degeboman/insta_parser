@@ -25,7 +25,7 @@ func FormatParsingDate(date string) string {
 			continue
 		}
 
-		return t.Format(constants.ParsingDateFormat)
+		return t.Format(time.DateTime)
 	}
 
 	return ""
