@@ -144,7 +144,7 @@ func (y YoutubeShortInfoApiResponse) ToResultRow(originalUrl string) *ResultRowU
 		ER:          utils.GetER(int64(likes), int64(shares), int64(comments), int64(views)),
 		Virality:    utils.GetVirality(int64(shares), int64(views)),
 		ParsingDate: utils.ParsingDate(),
-		PublishDate: publishDate,
+		PublishDate: utils.FormatParsingDate(publishDate),
 	}
 
 	return result

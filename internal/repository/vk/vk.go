@@ -8,9 +8,8 @@ import (
 
 	"inst_parser/internal/models"
 
-	"github.com/SevereCloud/vksdk/v2/api"
-	"github.com/SevereCloud/vksdk/v2/api/params"
-	"github.com/SevereCloud/vksdk/v2/object"
+	"github.com/SevereCloud/vksdk/v3/api"
+	"github.com/SevereCloud/vksdk/v3/object"
 )
 
 type Repository struct {
@@ -48,16 +47,20 @@ func (r *Repository) GroupID(groupName string) (string, error) {
 }
 
 func (r *Repository) PostInfo(postID string) (*models.VKClipInfo, error) {
-	builder := params.NewWallGetByIDBuilder()
-	builder.Posts([]string{postID})
+	const vkApiMethod = "wall.getById"
 
-	//var response models.VKWallResponse
-	response, err := r.vkApi.WallGetByID(builder.Params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get clip info: %w", err)
+	params := api.Params{
+		"posts": postID,
 	}
 
-	if len(response) == 0 {
+	var response models.WallGetByIDResponse
+
+	if err := r.vkApi.RequestUnmarshal(vkApiMethod, &response, params); err != nil {
+		fmt.Errorf("failed to get post info: post_id = %s, err = %w", postID, err)
+		return nil, err
+	}
+
+	if len(response.Items) == 0 {
 		return nil, fmt.Errorf("post not found")
 	}
 
@@ -66,51 +69,49 @@ func (r *Repository) PostInfo(postID string) (*models.VKClipInfo, error) {
 		comments, views int
 	)
 
-	//if len(response[0].Attachments) > 0 {
-	//	if response[0].Attachments[0].Type == "video" {
-	//
-	//	}
-	//}
-
-	//todo добавить условие && response[0].Attachments[0].Type == "video"
-	if len(response[0].Attachments) > 0 {
-		description = response[0].Attachments[0].Video.Description
-		views = response[0].Attachments[0].Video.Views
-		comments = response[0].Attachments[0].Video.Comments
+	//todo добавить условие && response.Items[0].Attachments[0].Type == "video"
+	if len(response.Items[0].Attachments) > 0 {
+		description = response.Items[0].Attachments[0].Video.Description
+		views = response.Items[0].Attachments[0].Video.Views
+		comments = response.Items[0].Attachments[0].Video.Comments
 
 		if views == 0 {
-			views = response[0].Views.Count
+			views = response.Items[0].Views.Count
 		}
 
 		if description == "" {
-			description = response[0].Text
+			description = response.Items[0].Text
 		}
 
 		if comments == 0 {
-			comments = response[0].Comments.Count
+			comments = response.Items[0].Comments.Count
 		}
 
 		return &models.VKClipInfo{
 			Description: description,
-			OwnerID:     response[0].OwnerID,
-			ClipID:      response[0].ID,
+			OwnerID:     response.Items[0].OwnerID,
+			ClipID:      response.Items[0].ID,
 			Views:       views,
-			Likes:       response[0].Likes.Count,
+			Likes:       response.Items[0].Likes.Count,
 			Comments:    comments,
-			Shares:      response[0].Reposts.Count,
-			Date:        time.Unix(int64(response[0].Date), 0),
+			Shares:      response.Items[0].Reposts.Count,
+			Date:        time.Unix(int64(response.Items[0].Date), 0),
+			OwnerUrl:    channelUrl(response.Items[0].OwnerID, response.Items[0].ID),
+			ErID:        response.Items[0].AuthorAd.AdMarker,
 		}, nil
 	}
 
 	postInfo := &models.VKClipInfo{
-		Description: response[0].Text,
-		OwnerID:     response[0].OwnerID,
-		ClipID:      response[0].ID,
-		Views:       response[0].Views.Count,
-		Likes:       response[0].Likes.Count,
-		Comments:    response[0].Comments.Count,
-		Shares:      response[0].Reposts.Count,
-		Date:        time.Unix(int64(response[0].Date), 0),
+		Description: response.Items[0].Text,
+		OwnerID:     response.Items[0].OwnerID,
+		ClipID:      response.Items[0].ID,
+		Views:       response.Items[0].Views.Count,
+		Likes:       response.Items[0].Likes.Count,
+		Comments:    response.Items[0].Comments.Count,
+		Shares:      response.Items[0].Reposts.Count,
+		Date:        time.Unix(int64(response.Items[0].Date), 0),
+		OwnerUrl:    channelUrl(response.Items[0].OwnerID, response.Items[0].ID),
+		ErID:        response.Items[0].AuthorAd.AdMarker,
 	}
 
 	return postInfo, nil
@@ -123,7 +124,7 @@ func (r *Repository) ClipInfo(ownerID, clipID int) (*models.VKClipInfo, error) {
 		"extended": 1,
 	}
 
-	var response api.VideoGetResponse
+	var response models.VideoGetResponse
 	if err := r.vkApi.RequestUnmarshal(vkApiMethod, &response, params); err != nil {
 		return nil, fmt.Errorf("failed to get clip info: %w", err)
 	}
@@ -134,6 +135,11 @@ func (r *Repository) ClipInfo(ownerID, clipID int) (*models.VKClipInfo, error) {
 
 	item := response.Items[0]
 
+	var advertiser models.AdvertiserInfo
+	if len(item.OrdInfo.Advertisers) > 0 {
+		advertiser = item.OrdInfo.Advertisers[0]
+	}
+
 	clipInfo := &models.VKClipInfo{
 		Description: item.Description,
 		OwnerID:     item.OwnerID,
@@ -143,39 +149,46 @@ func (r *Repository) ClipInfo(ownerID, clipID int) (*models.VKClipInfo, error) {
 		Comments:    item.Comments,
 		Shares:      item.Reposts.Count,
 		Date:        time.Unix(int64(item.Date), 0),
-		DownloadURL: findHighQualityLink(item),
+		DownloadURL: findHighQualityLink(item.Files),
+		OwnerUrl:    channelUrl(item.OwnerID, item.UserID),
+		PostID:      item.PostID,
+		ErID:        advertiser.ErID,
 	}
 
 	return clipInfo, nil
 }
 
-func findHighQualityLink(item object.VideoVideo) string {
-	if item.Files.Mp4_2160 != "" {
-		return item.Files.Mp4_2160
+func channelUrl(ownerID, userID int) string {
+	return fmt.Sprintf("https://vk.com/club%d", ownerID*(-1))
+}
+
+func findHighQualityLink(item object.VideoVideoFiles) string {
+	if item.Mp4_2160 != "" {
+		return item.Mp4_2160
 	}
 
-	if item.Files.Mp4_1440 != "" {
-		return item.Files.Mp4_1440
+	if item.Mp4_1440 != "" {
+		return item.Mp4_1440
 	}
 
-	if item.Files.Mp4_1080 != "" {
-		return item.Files.Mp4_1080
+	if item.Mp4_1080 != "" {
+		return item.Mp4_1080
 	}
 
-	if item.Files.Mp4_720 != "" {
-		return item.Files.Mp4_720
+	if item.Mp4_720 != "" {
+		return item.Mp4_720
 	}
 
-	if item.Files.Mp4_480 != "" {
-		return item.Files.Mp4_480
+	if item.Mp4_480 != "" {
+		return item.Mp4_480
 	}
 
-	if item.Files.Mp4_360 != "" {
-		return item.Files.Mp4_360
+	if item.Mp4_360 != "" {
+		return item.Mp4_360
 	}
 
-	if item.Files.Mp4_240 != "" {
-		return item.Files.Mp4_240
+	if item.Mp4_240 != "" {
+		return item.Mp4_240
 	}
 
 	return ""
