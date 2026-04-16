@@ -93,6 +93,9 @@ definitions:
     type: object
   models.ResultRowUrl:
     properties:
+      advertiserName:
+        description: имя рекламодателя, только для вк
+        type: string
       comments:
         description: Комментарии
         format: int64
@@ -105,6 +108,9 @@ definitions:
         type: string
       erID:
         description: айди рекламы, только для вк
+        type: string
+      inn:
+        description: инн, только для вк
         type: string
       likes:
         description: Лайки

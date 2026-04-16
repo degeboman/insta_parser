@@ -365,6 +365,10 @@ const docTemplate = `{
         "models.ResultRowUrl": {
             "type": "object",
             "properties": {
+                "advertiserName": {
+                    "description": "имя рекламодателя, только для вк",
+                    "type": "string"
+                },
                 "comments": {
                     "description": "Комментарии",
                     "type": "integer",
@@ -380,6 +384,10 @@ const docTemplate = `{
                 },
                 "erID": {
                     "description": "айди рекламы, только для вк",
+                    "type": "string"
+                },
+                "inn": {
+                    "description": "инн, только для вк",
                     "type": "string"
                 },
                 "likes": {
