@@ -34,7 +34,7 @@ definitions:
     properties:
       data:
         allOf:
-        - $ref: '#/definitions/models.ResultRow'
+        - $ref: '#/definitions/models.ResultRowUrl'
         description: Parsed video data
       message:
         description: Response message
@@ -91,31 +91,51 @@ definitions:
       virality:
         type: string
     type: object
-  models.ResultRow:
+  models.ResultRowUrl:
     properties:
       comments:
+        description: Комментарии
         format: int64
         type: integer
       description:
+        description: Описание
         type: string
       er:
+        description: ER (likes+shares+comments)/views*100
+        type: string
+      erID:
+        description: айди рекламы, только для вк
         type: string
       likes:
+        description: Лайки
         format: int64
         type: integer
+      ownerUrl:
+        description: Ссылка на канал
+        type: string
       parsingDate:
+        description: Дата обновления
         type: string
       publishDate:
+        description: Дата публикации
         type: string
       shares:
+        description: Репосты
         format: int64
         type: integer
       url:
+        description: Cсылка на видео
         type: string
+      videoUrls:
+        items:
+          type: string
+        type: array
       views:
+        description: Охват факт
         format: int64
         type: integer
       virality:
+        description: Виральность (shared/views)*100
         type: string
     type: object
 host: hammerhead-app-xw9wl.ondigitalocean.app

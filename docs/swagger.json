@@ -272,7 +272,7 @@
                     "description": "Parsed video data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/models.ResultRow"
+                            "$ref": "#/definitions/models.ResultRowUrl"
                         }
                     ]
                 },
@@ -356,41 +356,65 @@
                 }
             }
         },
-        "models.ResultRow": {
+        "models.ResultRowUrl": {
             "type": "object",
             "properties": {
                 "comments": {
+                    "description": "Комментарии",
                     "type": "integer",
                     "format": "int64"
                 },
                 "description": {
+                    "description": "Описание",
                     "type": "string"
                 },
                 "er": {
+                    "description": "ER (likes+shares+comments)/views*100",
+                    "type": "string"
+                },
+                "erID": {
+                    "description": "айди рекламы, только для вк",
                     "type": "string"
                 },
                 "likes": {
+                    "description": "Лайки",
                     "type": "integer",
                     "format": "int64"
                 },
+                "ownerUrl": {
+                    "description": "Ссылка на канал",
+                    "type": "string"
+                },
                 "parsingDate": {
+                    "description": "Дата обновления",
                     "type": "string"
                 },
                 "publishDate": {
+                    "description": "Дата публикации",
                     "type": "string"
                 },
                 "shares": {
+                    "description": "Репосты",
                     "type": "integer",
                     "format": "int64"
                 },
                 "url": {
+                    "description": "Cсылка на видео",
                     "type": "string"
                 },
+                "videoUrls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "views": {
+                    "description": "Охват факт",
                     "type": "integer",
                     "format": "int64"
                 },
                 "virality": {
+                    "description": "Виральность (shared/views)*100",
                     "type": "string"
                 }
             }
