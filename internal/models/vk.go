@@ -27,6 +27,11 @@ type AdvertiserInfo struct {
 	Url  string `json:"url"`
 }
 
+type AdvertiserInfoFromUrl struct {
+	INN  string
+	Name string
+}
+
 type WallGetByIDResponse struct {
 	Items []struct {
 		object.WallWallpost
@@ -38,24 +43,26 @@ type WallGetByIDResponse struct {
 }
 
 type VKClipInfo struct {
-	OwnerID     int
-	ClipID      int
-	Views       int
-	Likes       int
-	Comments    int
-	Shares      int
-	GroupUrl    string
-	URL         string
-	Description string
-	ER          string
-	Virality    string
-	ParsingDate string
-	PublishDate string
-	DownloadURL string
-	OwnerUrl    string
-	ErID        string
-	PostID      int
-	Date        time.Time
+	OwnerID        int
+	ClipID         int
+	Views          int
+	Likes          int
+	Comments       int
+	Shares         int
+	GroupUrl       string
+	URL            string
+	Description    string
+	ER             string
+	Virality       string
+	ParsingDate    string
+	PublishDate    string
+	DownloadURL    string
+	OwnerUrl       string
+	ErID           string
+	PostID         int
+	INN            string
+	AdvertiserName string
+	Date           time.Time
 }
 
 func VKClipsInfoToInterface(clips []*VKClipInfo) [][]interface{} {
@@ -137,18 +144,20 @@ func ProcessVkGroupClipResponse(apiResponse RapidVkScraperClip, url string) *VKC
 
 func ProcessVKClipInfoToResultRow(url string, result *VKClipInfo) *ResultRowUrl {
 	return &ResultRowUrl{
-		URL:         url,
-		Description: result.Description,
-		Views:       int64(result.Views),
-		Likes:       int64(result.Likes),
-		Comments:    int64(result.Comments),
-		Shares:      int64(result.Shares),
-		ER:          utils.GetER(int64(result.Likes), int64(result.Shares), int64(result.Comments), int64(result.Views)),
-		Virality:    utils.GetVirality(int64(result.Shares), int64(result.Views)),
-		PublishDate: utils.PublishDate(result.Date),
-		ParsingDate: utils.ParsingDate(),
-		OwnerUrl:    result.OwnerUrl,
-		ErID:        result.ErID,
+		URL:            url,
+		Description:    result.Description,
+		Views:          int64(result.Views),
+		Likes:          int64(result.Likes),
+		Comments:       int64(result.Comments),
+		Shares:         int64(result.Shares),
+		ER:             utils.GetER(int64(result.Likes), int64(result.Shares), int64(result.Comments), int64(result.Views)),
+		Virality:       utils.GetVirality(int64(result.Shares), int64(result.Views)),
+		PublishDate:    utils.PublishDate(result.Date),
+		ParsingDate:    utils.ParsingDate(),
+		OwnerUrl:       result.OwnerUrl,
+		ErID:           result.ErID,
+		INN:            result.INN,
+		AdvertiserName: result.AdvertiserName,
 	}
 }
 

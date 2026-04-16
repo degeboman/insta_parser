@@ -2,14 +2,18 @@ package vk
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"inst_parser/internal/models"
 
 	"github.com/SevereCloud/vksdk/v3/api"
 	"github.com/SevereCloud/vksdk/v3/object"
+	"golang.org/x/net/html"
 )
 
 type Repository struct {
@@ -27,8 +31,10 @@ func NewRepository(logger *slog.Logger, accessToken string) *Repository {
 
 func (r *Repository) GroupID(groupName string) (string, error) {
 	const vkApiMethod = "groups.getById"
-	var groupInfo []struct {
-		ID int `json:"id"`
+	var groupInfo struct {
+		Groups []struct {
+			ID int `json:"id"`
+		} `json:"groups"`
 	}
 
 	params := api.Params{
@@ -39,11 +45,11 @@ func (r *Repository) GroupID(groupName string) (string, error) {
 		return "", fmt.Errorf("failed to get group info: group_id = %s, err = %w", groupName, err)
 	}
 
-	if len(groupInfo) == 0 {
+	if len(groupInfo.Groups) == 0 {
 		return "", fmt.Errorf("group not found: group_id = %s", groupName)
 	}
 
-	return strconv.Itoa(-groupInfo[0].ID), nil // Для групп ID отрицательный
+	return strconv.Itoa(-groupInfo.Groups[0].ID), nil // Для групп ID отрицательный
 }
 
 func (r *Repository) PostInfo(postID string) (*models.VKClipInfo, error) {
@@ -87,31 +93,51 @@ func (r *Repository) PostInfo(postID string) (*models.VKClipInfo, error) {
 			comments = response.Items[0].Comments.Count
 		}
 
+		adsInfo, err := r.getAdvertiserInfo(response.Items[0].AuthorAd.AdvertiserInfoUrl)
+		if err != nil {
+			r.logger.Warn("failed to get advertiser info",
+				slog.String("err", err.Error()),
+				slog.String("url", response.Items[0].AuthorAd.AdvertiserInfoUrl),
+			)
+		}
+
 		return &models.VKClipInfo{
-			Description: description,
-			OwnerID:     response.Items[0].OwnerID,
-			ClipID:      response.Items[0].ID,
-			Views:       views,
-			Likes:       response.Items[0].Likes.Count,
-			Comments:    comments,
-			Shares:      response.Items[0].Reposts.Count,
-			Date:        time.Unix(int64(response.Items[0].Date), 0),
-			OwnerUrl:    channelUrl(response.Items[0].OwnerID, response.Items[0].ID),
-			ErID:        response.Items[0].AuthorAd.AdMarker,
+			Description:    description,
+			OwnerID:        response.Items[0].OwnerID,
+			ClipID:         response.Items[0].ID,
+			Views:          views,
+			Likes:          response.Items[0].Likes.Count,
+			Comments:       comments,
+			Shares:         response.Items[0].Reposts.Count,
+			Date:           time.Unix(int64(response.Items[0].Date), 0),
+			OwnerUrl:       channelUrl(response.Items[0].OwnerID, response.Items[0].ID),
+			ErID:           response.Items[0].AuthorAd.AdMarker,
+			INN:            adsInfo.INN,
+			AdvertiserName: adsInfo.Name,
 		}, nil
 	}
 
+	adsInfo, err := r.getAdvertiserInfo(response.Items[0].AuthorAd.AdvertiserInfoUrl)
+	if err != nil {
+		r.logger.Warn("failed to get advertiser info",
+			slog.String("err", err.Error()),
+			slog.String("url", response.Items[0].AuthorAd.AdvertiserInfoUrl),
+		)
+	}
+
 	postInfo := &models.VKClipInfo{
-		Description: response.Items[0].Text,
-		OwnerID:     response.Items[0].OwnerID,
-		ClipID:      response.Items[0].ID,
-		Views:       response.Items[0].Views.Count,
-		Likes:       response.Items[0].Likes.Count,
-		Comments:    response.Items[0].Comments.Count,
-		Shares:      response.Items[0].Reposts.Count,
-		Date:        time.Unix(int64(response.Items[0].Date), 0),
-		OwnerUrl:    channelUrl(response.Items[0].OwnerID, response.Items[0].ID),
-		ErID:        response.Items[0].AuthorAd.AdMarker,
+		Description:    response.Items[0].Text,
+		OwnerID:        response.Items[0].OwnerID,
+		ClipID:         response.Items[0].ID,
+		Views:          response.Items[0].Views.Count,
+		Likes:          response.Items[0].Likes.Count,
+		Comments:       response.Items[0].Comments.Count,
+		Shares:         response.Items[0].Reposts.Count,
+		Date:           time.Unix(int64(response.Items[0].Date), 0),
+		OwnerUrl:       channelUrl(response.Items[0].OwnerID, response.Items[0].ID),
+		ErID:           response.Items[0].AuthorAd.AdMarker,
+		INN:            adsInfo.INN,
+		AdvertiserName: adsInfo.Name,
 	}
 
 	return postInfo, nil
@@ -140,22 +166,112 @@ func (r *Repository) ClipInfo(ownerID, clipID int) (*models.VKClipInfo, error) {
 		advertiser = item.OrdInfo.Advertisers[0]
 	}
 
+	adsInfo, err := r.getAdvertiserInfo(advertiser.Url)
+	if err != nil {
+		r.logger.Warn("failed to get advertiser info",
+			slog.String("err", err.Error()),
+			slog.String("url", advertiser.Url),
+		)
+	}
+
 	clipInfo := &models.VKClipInfo{
-		Description: item.Description,
-		OwnerID:     item.OwnerID,
-		ClipID:      item.ID,
-		Views:       item.Views,
-		Likes:       item.Likes.Count,
-		Comments:    item.Comments,
-		Shares:      item.Reposts.Count,
-		Date:        time.Unix(int64(item.Date), 0),
-		DownloadURL: findHighQualityLink(item.Files),
-		OwnerUrl:    channelUrl(item.OwnerID, item.UserID),
-		PostID:      item.PostID,
-		ErID:        advertiser.ErID,
+		Description:    item.Description,
+		OwnerID:        item.OwnerID,
+		ClipID:         item.ID,
+		Views:          item.Views,
+		Likes:          item.Likes.Count,
+		Comments:       item.Comments,
+		Shares:         item.Reposts.Count,
+		Date:           time.Unix(int64(item.Date), 0),
+		DownloadURL:    findHighQualityLink(item.Files),
+		OwnerUrl:       channelUrl(item.OwnerID, item.UserID),
+		PostID:         item.PostID,
+		ErID:           advertiser.ErID,
+		INN:            adsInfo.INN,
+		AdvertiserName: adsInfo.Name,
 	}
 
 	return clipInfo, nil
+}
+
+func (r *Repository) getAdvertiserInfo(eridURL string) (models.AdvertiserInfoFromUrl, error) {
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	req, err := http.NewRequest("GET", eridURL, nil)
+	if err != nil {
+		return models.AdvertiserInfoFromUrl{}, fmt.Errorf("ошибка создания запроса: %w", err)
+	}
+
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "ru-RU,ru;q=0.9")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return models.AdvertiserInfoFromUrl{}, fmt.Errorf("ошибка запроса: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return models.AdvertiserInfoFromUrl{}, fmt.Errorf("ошибка чтения тела ответа: %w", err)
+	}
+
+	pageHTML := string(body)
+	info := models.AdvertiserInfoFromUrl{}
+
+	// Ищем имя рекламодателя в тексте
+	info.INN = findTableValue(pageHTML, "ИНН")
+	info.Name = findTableValue(pageHTML, "Рекламодатель")
+
+	return info, nil
+}
+
+// findTableValue ищет значение в таблице по ключу (следующий <td> после совпадения)
+func findTableValue(pageHTML, key string) string {
+	doc, err := html.Parse(strings.NewReader(pageHTML))
+	if err != nil {
+		return ""
+	}
+
+	var result string
+	var walk func(*html.Node)
+	walk = func(n *html.Node) {
+		if result != "" {
+			return
+		}
+		if n.Type == html.ElementNode && n.Data == "td" {
+			text := strings.TrimSpace(nodeText(n))
+			if text == key {
+				// Берём следующий sibling <td>
+				for sib := n.NextSibling; sib != nil; sib = sib.NextSibling {
+					if sib.Type == html.ElementNode && sib.Data == "td" {
+						result = strings.TrimSpace(nodeText(sib))
+						return
+					}
+				}
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			walk(c)
+		}
+	}
+	walk(doc)
+	return result
+}
+
+// nodeText извлекает текст из узла рекурсивно
+func nodeText(n *html.Node) string {
+	if n.Type == html.TextNode {
+		return n.Data
+	}
+	var sb strings.Builder
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		sb.WriteString(nodeText(c))
+	}
+	return sb.String()
 }
 
 func channelUrl(ownerID, userID int) string {

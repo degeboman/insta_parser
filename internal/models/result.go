@@ -134,6 +134,10 @@ func ResultRowsToInterface(results []*ResultRowUrl) [][]interface{} {
 			results[i].ParsingDate,
 			results[i].PublishDate,
 			results[i].Description,
+			results[i].OwnerUrl,
+			results[i].ErID,
+			results[i].INN,
+			results[i].AdvertiserName,
 		}
 		values = append(values, rowValues)
 	}
