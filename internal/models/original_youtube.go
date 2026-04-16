@@ -54,6 +54,7 @@ type Snippet struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	PublishedAt string `json:"publishedAt"`
+	ChannelId   string `json:"channelId"`
 }
 
 type Statistics struct {
@@ -135,6 +136,7 @@ func (y YoutubeShortInfoApiResponse) ToResultRow(originalUrl string) *ResultRowU
 	}
 
 	result := &ResultRowUrl{
+		OwnerUrl:    y.AccountURL,
 		URL:         originalUrl,
 		Description: fmt.Sprintf("%s.%s", y.Title, y.Description),
 		Views:       int64(views),

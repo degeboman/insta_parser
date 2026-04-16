@@ -29,7 +29,7 @@ func NewYouTubeClient(logger *slog.Logger, apiKey string) *Client {
 }
 
 // YoutubeShortInfo получает статистику для YouTube видео или Shorts
-func (c Client) YoutubeShortInfo(videoID string) (*models.YoutubeShortInfoApiResponse, error) {
+func (c *Client) YoutubeShortInfo(videoID string) (*models.YoutubeShortInfoApiResponse, error) {
 	// Формируем URL запроса
 	params := url.Values{}
 	params.Add("part", "snippet,statistics")
@@ -82,6 +82,7 @@ func (c Client) YoutubeShortInfo(videoID string) (*models.YoutubeShortInfoApiRes
 	likes, _ := strconv.Atoi(apiResponse.Items[0].Statistics.LikeCount)
 
 	return &models.YoutubeShortInfoApiResponse{
+		AccountURL:    fmt.Sprintf("https://www.youtube.com/channel/%s", item.Snippet.ChannelId),
 		ID:            item.ID,
 		Title:         item.Snippet.Title,
 		LikeCount:     likes,
@@ -92,7 +93,7 @@ func (c Client) YoutubeShortInfo(videoID string) (*models.YoutubeShortInfoApiRes
 	}, nil
 }
 
-func (c Client) GetChannelIDByUsername(username string) (string, error) {
+func (c *Client) GetChannelIDByUsername(username string) (string, error) {
 	params := url.Values{}
 	params.Add("part", "contentDetails")
 	params.Add("forHandle", username)

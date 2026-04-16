@@ -289,6 +289,8 @@ func (u *Usecase) parseInstagram(url string) *models.ResultRowUrl {
 }
 
 func (u *Usecase) parseVK(url string) *models.ResultRowUrl {
+	time.Sleep(500 * time.Millisecond)
+
 	if strings.Contains(url, "wall") {
 		return u.parseVkWall(url)
 	}

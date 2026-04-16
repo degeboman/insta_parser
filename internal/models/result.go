@@ -84,6 +84,7 @@ func ProcessInstagramResponse(
 
 	// Создаем строку результата
 	result := &ResultRowUrl{
+		OwnerUrl:    fmt.Sprintf("https://www.instagram.com/%s/reels/", item.User.Username),
 		URL:         url,
 		Description: item.Caption.Text,
 		Views:       views,
