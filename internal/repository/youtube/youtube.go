@@ -13,23 +13,34 @@ import (
 
 	"inst_parser/internal/constants"
 	"inst_parser/internal/models"
+
+	"golang.org/x/time/rate"
 )
 
 // Client клиент для работы с YouTube API
 type Client struct {
-	logger *slog.Logger
-	apiKey string
+	logger  *slog.Logger
+	apiKey  string
+	limiter *rate.Limiter
 }
 
 func NewYouTubeClient(logger *slog.Logger, apiKey string) *Client {
 	return &Client{
-		apiKey: apiKey,
-		logger: logger,
+		apiKey:  apiKey,
+		logger:  logger,
+		limiter: rate.NewLimiter(2, 2),
 	}
 }
 
 // YoutubeShortInfo получает статистику для YouTube видео или Shorts
 func (c *Client) YoutubeShortInfo(videoID string) (*models.YoutubeShortInfoApiResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	if err := c.limiter.Wait(ctx); err != nil {
+		return nil, err
+	}
+
 	// Формируем URL запроса
 	params := url.Values{}
 	params.Add("part", "snippet,statistics")
@@ -37,9 +48,6 @@ func (c *Client) YoutubeShortInfo(videoID string) (*models.YoutubeShortInfoApiRe
 	params.Add("key", c.apiKey)
 
 	requestURL := fmt.Sprintf("%s?%s", constants.YoutubeVideos, params.Encode())
-
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
 
 	// Создаём HTTP запрос с контекстом
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
@@ -94,14 +102,19 @@ func (c *Client) YoutubeShortInfo(videoID string) (*models.YoutubeShortInfoApiRe
 }
 
 func (c *Client) GetChannelIDByUsername(username string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	if err := c.limiter.Wait(ctx); err != nil {
+		return "", err
+	}
+
 	params := url.Values{}
 	params.Add("part", "contentDetails")
 	params.Add("forHandle", username)
 	params.Add("key", c.apiKey)
 
 	requestURL := fmt.Sprintf("%s?%s", constants.YoutubeChannels, params.Encode())
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 	if err != nil {
