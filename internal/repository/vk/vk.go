@@ -1,6 +1,7 @@
 package vk
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -14,22 +15,32 @@ import (
 	"github.com/SevereCloud/vksdk/v3/api"
 	"github.com/SevereCloud/vksdk/v3/object"
 	"golang.org/x/net/html"
+	"golang.org/x/time/rate"
 )
 
 type Repository struct {
-	logger *slog.Logger
-	vkApi  *api.VK
+	logger  *slog.Logger
+	vkApi   *api.VK
+	limiter *rate.Limiter
 }
 
 func NewRepository(logger *slog.Logger, accessToken string) *Repository {
 	vk := api.NewVK(accessToken)
 	return &Repository{
-		logger: logger,
-		vkApi:  vk,
+		logger:  logger,
+		vkApi:   vk,
+		limiter: rate.NewLimiter(2, 2),
 	}
 }
 
 func (r *Repository) GroupID(groupName string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := r.limiter.Wait(ctx); err != nil {
+		return "", err
+	}
+
 	const vkApiMethod = "groups.getById"
 	var groupInfo struct {
 		Groups []struct {
@@ -53,6 +64,13 @@ func (r *Repository) GroupID(groupName string) (string, error) {
 }
 
 func (r *Repository) PostInfo(postID string) (*models.VKClipInfo, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := r.limiter.Wait(ctx); err != nil {
+		return nil, err
+	}
+
 	const vkApiMethod = "wall.getById"
 
 	params := api.Params{
@@ -144,6 +162,13 @@ func (r *Repository) PostInfo(postID string) (*models.VKClipInfo, error) {
 }
 
 func (r *Repository) ClipInfo(ownerID, clipID int) (*models.VKClipInfo, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := r.limiter.Wait(ctx); err != nil {
+		return nil, err
+	}
+
 	const vkApiMethod = "video.get"
 	params := api.Params{
 		"videos":   fmt.Sprintf("%d_%d", ownerID, clipID),

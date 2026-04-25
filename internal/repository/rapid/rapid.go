@@ -8,11 +8,12 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
 
 	"inst_parser/internal/constants"
 	"inst_parser/internal/models"
+
+	"golang.org/x/time/rate"
 )
 
 type vkClipInfoProvider interface {
@@ -20,13 +21,13 @@ type vkClipInfoProvider interface {
 }
 
 type Repository struct {
-	rapidAPIKey           string
-	logger                *slog.Logger
-	httpClient            *http.Client
-	vkClipInfoProvider    vkClipInfoProvider
-	processingInstagramMu sync.Mutex
-	processingVkMu        sync.Mutex
-	processingTiktokMu    sync.Mutex
+	rapidAPIKey        string
+	logger             *slog.Logger
+	httpClient         *http.Client
+	vkClipInfoProvider vkClipInfoProvider
+	instagramLimiter   *rate.Limiter
+	vkLimiter          *rate.Limiter
+	tiktokLimiter      *rate.Limiter
 }
 
 func NewRepository(
@@ -38,6 +39,9 @@ func NewRepository(
 		logger:             log,
 		rapidAPIKey:        rapidApiKey,
 		vkClipInfoProvider: vkClipInfoProvider,
+		instagramLimiter:   rate.NewLimiter(5, 5),
+		vkLimiter:          rate.NewLimiter(7, 7),
+		tiktokLimiter:      rate.NewLimiter(300, 300),
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -45,9 +49,6 @@ func NewRepository(
 }
 
 func (r *Repository) GetInstagramReelsInfoForAccount(info *models.AccountInfo) ([]*models.InstagramReelInfo, error) {
-	r.processingInstagramMu.Lock()
-	defer r.processingInstagramMu.Unlock()
-
 	reels := make([]*models.InstagramReelInfo, 0, info.Count)
 	var maxID string
 
@@ -79,9 +80,6 @@ func (r *Repository) GetInstagramReelsInfoForAccount(info *models.AccountInfo) (
 		if !apiResp.Data.PagingInfo.MoreAvailable {
 			break
 		}
-
-		// Задержка между запросами
-		time.Sleep(500 * time.Millisecond)
 	}
 
 	return reels, nil
@@ -90,12 +88,16 @@ func (r *Repository) GetInstagramReelsInfoForAccount(info *models.AccountInfo) (
 func (r *Repository) getRapidRealTimeInstagramScraperUserReels(
 	endpoint string,
 ) (*models.GetRapidRealTimeInstagramScraperUserReelsResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	if err := r.instagramLimiter.Wait(ctx); err != nil {
+		return nil, err
+	}
+
 	if r.rapidAPIKey == "" {
 		return nil, fmt.Errorf("RAPIDAPI_KEY is not set")
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
 
 	req, err := http.NewRequestWithContext(
 		ctx,
@@ -141,12 +143,9 @@ func (r *Repository) getRapidRealTimeInstagramScraperUserReels(
 }
 
 func (r *Repository) GetVKClipsInfoForGroup(info *models.AccountInfo) ([]*models.VKClipInfo, error) {
-	r.processingVkMu.Lock()
-	defer r.processingVkMu.Unlock()
-
 	clips := make([]*models.VKClipInfo, 0, info.Count)
-	var cursor string
 
+	var cursor string
 	for len(clips) < info.Count {
 		apiResp, err := r.getVkClipsInfoForGroup(
 			getVkUserClipsEndpoint(info.Identification, cursor),
@@ -192,21 +191,21 @@ func (r *Repository) GetVKClipsInfoForGroup(info *models.AccountInfo) ([]*models
 		if cursor == "" {
 			break
 		}
-
-		// Задержка между запросами
-		time.Sleep(500 * time.Millisecond)
 	}
 
 	return clips, nil
 }
 
 func (r *Repository) getVkClipsInfoForGroup(endpoint string) (*models.RapidVkScraperUserClipsResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+	if err := r.vkLimiter.Wait(ctx); err != nil {
+		return nil, err
+	}
+
 	if r.rapidAPIKey == "" {
 		return nil, fmt.Errorf("RAPIDAPI_KEY is not set")
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
 
 	req, err := http.NewRequestWithContext(
 		ctx,
@@ -251,15 +250,16 @@ func (r *Repository) getVkClipsInfoForGroup(endpoint string) (*models.RapidVkScr
 }
 
 func (r *Repository) GetInstagramReelInfo(reelURL string) (*models.RealTimeScraperMediaInfoResponse, error) {
-	r.processingInstagramMu.Lock()
-	defer r.processingInstagramMu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	if err := r.instagramLimiter.Wait(ctx); err != nil {
+		return nil, err
+	}
 
 	if r.rapidAPIKey == "" {
 		return nil, fmt.Errorf("RAPIDAPI_KEY is not set")
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
 
 	// Создаем запрос с Query параметрами
 	req, err := http.NewRequestWithContext(
@@ -303,15 +303,15 @@ func (r *Repository) GetInstagramReelInfo(reelURL string) (*models.RealTimeScrap
 }
 
 func (r *Repository) GetTiktokVideoInfo(url string) (*models.TikTokVideoApiResponse, error) {
-	r.processingTiktokMu.Lock()
-	defer r.processingTiktokMu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+	if err := r.tiktokLimiter.Wait(ctx); err != nil {
+		return nil, err
+	}
 
 	if r.rapidAPIKey == "" {
 		return nil, fmt.Errorf("RAPIDAPI_KEY is not set")
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
 
 	// Создаем запрос с Query параметрами
 	req, err := http.NewRequestWithContext(
@@ -355,20 +355,21 @@ func (r *Repository) GetTiktokVideoInfo(url string) (*models.TikTokVideoApiRespo
 }
 
 func (r *Repository) GetTiktokVideoByUserId(info *models.UrlInfo) ([]*models.TikTokVideo, error) {
-	r.processingTiktokMu.Lock()
-	defer r.processingTiktokMu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
 
 	if r.rapidAPIKey == "" {
 		return nil, fmt.Errorf("RAPIDAPI_KEY is not set")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
-
 	videos := make([]*models.TikTokVideo, 0, info.Count)
 	var cursor string
 
 	for len(videos) < info.Count {
+		if err := r.tiktokLimiter.Wait(ctx); err != nil {
+			return nil, err
+		}
+
 		// Создаем запрос с Query параметрами
 		req, err := http.NewRequestWithContext(
 			ctx,
@@ -425,24 +426,20 @@ func (r *Repository) GetTiktokVideoByUserId(info *models.UrlInfo) ([]*models.Tik
 		if cursor == "" {
 			break
 		}
-
-		// Задержка между запросами
-		time.Sleep(500 * time.Millisecond)
 	}
 
 	return videos, nil
 }
 
 func (r *Repository) GetTiktokAccountIdByUsername(username string) (string, error) {
-	r.processingTiktokMu.Lock()
-	defer r.processingTiktokMu.Unlock()
-
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+	if err := r.tiktokLimiter.Wait(ctx); err != nil {
+		return "", err
+	}
 	if r.rapidAPIKey == "" {
 		return "", fmt.Errorf("RAPIDAPI_KEY is not set")
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
 
 	// Создаем запрос с Query параметрами
 	req, err := http.NewRequestWithContext(

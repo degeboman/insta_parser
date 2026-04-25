@@ -215,16 +215,6 @@ func (u *Usecase) processInstagramVideo(url, dir string) (string, error) {
 		}
 	}
 
-	//path, err := u.videoDownloader.DownloadVideo(info.Data.Items[0].ID, clipInfo.DownloadURL, dir)
-	//if err != nil {
-	//	u.logger.Error("Error downloading video",
-	//		slog.String("url", url),
-	//		slog.String("err", err.Error()),
-	//	)
-	//
-	//	return "", fmt.Errorf("error downloading video, err: %v", err)
-	//}
-
 	return path, nil
 }
 
