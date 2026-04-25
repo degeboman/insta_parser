@@ -10,17 +10,20 @@ import (
 )
 
 type ClipMoneyResultRow struct {
-	AccountUrl  string `json:"account_url"`
-	URL         string `json:"url"`
-	Description string `json:"description"`
-	Views       int64  `json:"views"`
-	Likes       int64  `json:"likes"`
-	Comments    int64  `json:"comments"`
-	Shares      int64  `json:"shares"`
-	ER          string `json:"er"`
-	Virality    string `json:"virality"`
-	ParsingDate string `json:"parsing_date"`
-	PublishDate string `json:"publish_date"`
+	AccountUrl     string `json:"account_url"`
+	URL            string `json:"url"`
+	Description    string `json:"description"`
+	Views          int64  `json:"views"`
+	Likes          int64  `json:"likes"`
+	Comments       int64  `json:"comments"`
+	Shares         int64  `json:"shares"`
+	ER             string `json:"er"`
+	Virality       string `json:"virality"`
+	ParsingDate    string `json:"parsing_date"`
+	PublishDate    string `json:"publish_date"`
+	ErID           string `json:"er_id"`
+	INN            string `json:"inn"`
+	AdvertiserName string `json:"advertiser_name"`
 }
 
 // todo remove
@@ -62,17 +65,20 @@ func ClipMoneyResultRowFromVkClipInfo(data []*VKClipInfo, accountUrl string) []*
 
 	for i := range data {
 		result[i] = &ClipMoneyResultRow{
-			AccountUrl:  accountUrl,
-			URL:         data[i].URL,
-			Description: data[i].Description,
-			Views:       int64(data[i].Views),
-			Likes:       int64(data[i].Likes),
-			Comments:    int64(data[i].Comments),
-			Shares:      int64(data[i].Shares),
-			ER:          data[i].ER,
-			Virality:    data[i].Virality,
-			ParsingDate: data[i].ParsingDate,
-			PublishDate: data[i].PublishDate,
+			AccountUrl:     accountUrl,
+			URL:            data[i].URL,
+			Description:    data[i].Description,
+			Views:          int64(data[i].Views),
+			Likes:          int64(data[i].Likes),
+			Comments:       int64(data[i].Comments),
+			Shares:         int64(data[i].Shares),
+			ER:             data[i].ER,
+			Virality:       data[i].Virality,
+			ParsingDate:    data[i].ParsingDate,
+			PublishDate:    data[i].PublishDate,
+			ErID:           data[i].ErID,
+			INN:            data[i].INN,
+			AdvertiserName: data[i].AdvertiserName,
 		}
 	}
 

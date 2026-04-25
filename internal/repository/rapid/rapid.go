@@ -15,10 +15,15 @@ import (
 	"inst_parser/internal/models"
 )
 
+type vkClipInfoProvider interface {
+	ClipInfo(ownerID, clipID int) (*models.VKClipInfo, error)
+}
+
 type Repository struct {
 	rapidAPIKey           string
 	logger                *slog.Logger
 	httpClient            *http.Client
+	vkClipInfoProvider    vkClipInfoProvider
 	processingInstagramMu sync.Mutex
 	processingVkMu        sync.Mutex
 	processingTiktokMu    sync.Mutex
@@ -27,10 +32,12 @@ type Repository struct {
 func NewRepository(
 	rapidApiKey string,
 	log *slog.Logger,
+	vkClipInfoProvider vkClipInfoProvider,
 ) *Repository {
 	return &Repository{
-		logger:      log,
-		rapidAPIKey: rapidApiKey,
+		logger:             log,
+		rapidAPIKey:        rapidApiKey,
+		vkClipInfoProvider: vkClipInfoProvider,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -160,7 +167,24 @@ func (r *Repository) GetVKClipsInfoForGroup(info *models.AccountInfo) ([]*models
 				break
 			}
 
-			clips = append(clips, models.ProcessVkGroupClipResponse(apiClip, info.AccountUrl))
+			clipTmp := models.ProcessVkGroupClipResponse(apiClip, info.AccountUrl)
+
+			vkClipInfo, getVkClipInfoErr := r.vkClipInfoProvider.ClipInfo(apiClip.OwnerID, apiClip.ID)
+			if getVkClipInfoErr != nil {
+				r.logger.Warn("failed to fetch vk clip info",
+					slog.Int("clip_id", apiClip.ID),
+					slog.Int("owner_id", apiClip.OwnerID),
+					slog.String("err", getVkClipInfoErr.Error()),
+				)
+			}
+
+			if getVkClipInfoErr == nil {
+				clipTmp.ErID = vkClipInfo.ErID
+				clipTmp.INN = vkClipInfo.INN
+				clipTmp.AdvertiserName = vkClipInfo.AdvertiserName
+			}
+
+			clips = append(clips, clipTmp)
 		}
 
 		// Обновляем курсор для следующего запроса
