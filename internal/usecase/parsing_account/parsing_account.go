@@ -353,6 +353,7 @@ func (u *Usecase) ClipMoneyParseAccount(
 	return nil, fmt.Errorf("unknown parsingType: %s", parsingType)
 }
 
+// processVKGroup общая точка обработки групп вк для таблиц и апи
 func (u *Usecase) processVKGroup(
 	accountName string,
 	accountUrl *models.UrlInfo,

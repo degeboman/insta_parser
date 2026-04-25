@@ -43,8 +43,8 @@ func main() {
 	googleSheetRepo := google_sheet.NewRepository(cfg.GoogleDriveCredentials)
 	progressSrv := progress.NewProgressTracker(googleSheetRepo.SheetsService)
 	urlSrv := search_url.NewUrlsService(l, googleSheetRepo.SheetsService)
-	rapidRepo := rapid.NewRepository(cfg.Rapid.ApiKey, l)
 	vkRepo := vk.NewRepository(l, cfg.VK.Token)
+	rapidRepo := rapid.NewRepository(cfg.Rapid.ApiKey, l, vkRepo)
 	youtubeRepo := youtube.NewYouTubeClient(l, cfg.Youtube.YoutubeToken)
 	videoDownloaderRepo := video_downloader.NewRepository()
 

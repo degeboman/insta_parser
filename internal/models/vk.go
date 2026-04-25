@@ -84,6 +84,9 @@ func VKClipsInfoToInterface(clips []*VKClipInfo) [][]interface{} {
 			clips[i].ParsingDate,
 			clips[i].PublishDate,
 			clips[i].Description,
+			clips[i].ErID,
+			clips[i].INN,
+			clips[i].AdvertiserName,
 		}
 		values = append(values, rowValues)
 	}
