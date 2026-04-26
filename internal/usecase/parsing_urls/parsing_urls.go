@@ -99,7 +99,7 @@ func (u *Usecase) ParseUrls(
 		isSelected,
 		[]models.ParsingType{
 			models.InstagramParsingType,
-			models.VKParsingType,
+			models.VKGroupParsingType,
 			models.YoutubeParsingType,
 			models.TiktokParsingType,
 		},
@@ -215,7 +215,7 @@ func (u *Usecase) processBatchUrl(
 		switch models.ParsingTypeByUrl(url.URL) {
 		case models.InstagramParsingType:
 			resultRow = u.parseInstagram(url.URL)
-		case models.VKParsingType:
+		case models.VKGroupParsingType:
 			resultRow = u.parseVK(url.URL)
 		case models.YoutubeParsingType:
 			resultRow = u.parseYoutubeShort(url.URL)
@@ -249,7 +249,7 @@ func (u *Usecase) processUrl(
 	switch models.ParsingTypeByUrl(url) {
 	case models.InstagramParsingType:
 		resultRow = u.parseInstagram(url)
-	case models.VKParsingType:
+	case models.VKGroupParsingType:
 		resultRow = u.parseVK(url)
 	case models.YoutubeParsingType:
 		resultRow = u.parseYoutubeShort(url)

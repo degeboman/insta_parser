@@ -2,11 +2,10 @@ package parsing_account
 
 import (
 	"fmt"
-	"log/slog"
-	"strconv"
-
 	"inst_parser/internal/constants"
 	"inst_parser/internal/models"
+	"log/slog"
+	"strconv"
 )
 
 type Usecase struct {
@@ -55,6 +54,7 @@ type (
 
 	VKGroupIDProvider interface {
 		GroupID(groupName string) (string, error)
+		UserID(userName string) (string, error)
 	}
 
 	VKClipInfoProvider interface {
@@ -171,7 +171,7 @@ func (u *Usecase) ParseAccount(
 		}
 
 		switch parsingType {
-		case models.VKParsingType:
+		case models.VKGroupParsingType:
 			result, processVkGroupErr := u.processVKGroup(
 				accountName,
 				accountUrl,
@@ -292,7 +292,7 @@ func (u *Usecase) ClipMoneyParseAccount(
 	}
 
 	switch parsingType {
-	case models.VKParsingType:
+	case models.VKGroupParsingType:
 		result, processVkGroupErr := u.processVKGroup(
 			accountName,
 			models.DefaultUrlInfo(accountUrl),
@@ -368,11 +368,58 @@ func (u *Usecase) processVKGroup(
 				slog.String("account_name", accountName),
 				slog.String("err", err.Error()),
 			)
+
+			groupID, err = u.vkGroupIDProvider.UserID(accountName)
+			if err != nil {
+				u.logger.Error("Failed to get user id",
+					slog.String("account_name", accountName),
+					slog.String("err", err.Error()),
+				)
+			}
+
 		}
 	}
+	//if _, err := strconv.Atoi(accountName); err == nil {
+	//	groupID, err = u.vkGroupIDProvider.GroupID(accountName)
+	//	if err != nil {
+	//		u.logger.Error("Failed to get group id",
+	//			slog.String("account_name", accountName),
+	//			slog.String("err", err.Error()),
+	//		)
+	//
+	//		groupID, err = u.vkGroupIDProvider.UserID(accountName[1:])
+	//		if err != nil {
+	//			u.logger.Error("Failed to get user id",
+	//				slog.String("account_name", accountName),
+	//				slog.String("err", err.Error()),
+	//			)
+	//		}
+	//	}
+	//
+	//	if groupID == "" {
+	//		groupID = accountName
+	//	}
+	//} else {
+	//	groupID, err = u.vkGroupIDProvider.GroupID(accountName)
+	//	if err != nil {
+	//		u.logger.Error("Failed to get group id",
+	//			slog.String("account_name", accountName),
+	//			slog.String("err", err.Error()),
+	//		)
+	//
+	//		groupID, err = u.vkGroupIDProvider.UserID(accountName)
+	//		if err != nil {
+	//			u.logger.Error("Failed to get user id",
+	//				slog.String("account_name", accountName),
+	//				slog.String("err", err.Error()),
+	//			)
+	//		}
+	//
+	//	}
+	//}
 
 	return u.vkClipInfoProvider.GetVKClipsInfoForGroup(
-		getAccountInfo(groupID, models.VKParsingType, accountUrl),
+		getAccountInfo(groupID, models.VKGroupParsingType, accountUrl),
 	)
 }
 

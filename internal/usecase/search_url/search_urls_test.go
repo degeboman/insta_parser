@@ -151,7 +151,7 @@ func TestUrlsService_GetUrls(t *testing.T) {
 					URLColumnIndex:      1,
 					CheckboxColumnIndex: 2,
 				},
-				parsingTypes: []models.ParsingType{models.VKParsingType},
+				parsingTypes: []models.ParsingType{models.VKGroupParsingType},
 			},
 			want:    []string{},
 			wantErr: false,

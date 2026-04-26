@@ -56,7 +56,7 @@ func (s *UrlsService) AccountUrls(
 		sheetName,
 		columnsPositions,
 		[]models.ParsingType{
-			models.VKParsingType,
+			models.VKGroupParsingType,
 			models.InstagramParsingType,
 			models.YoutubeParsingType,
 			models.TiktokParsingType,

@@ -6,7 +6,8 @@ type ParsingType string
 
 const (
 	InstagramParsingType ParsingType = "instagram"
-	VKParsingType        ParsingType = "vk"
+	VKGroupParsingType   ParsingType = "vk"
+	VKUserParsingType    ParsingType = "vk_user"
 	YoutubeParsingType   ParsingType = "youtube"
 	TiktokParsingType    ParsingType = "tiktok"
 	TelegramParsingType  ParsingType = "telegram"
@@ -28,11 +29,11 @@ func ParsingTypeByUrl(url string) ParsingType {
 
 	// Проверяем, содержит ли URL домен vk.com
 	if strings.Contains(urlLower, "vk.com") {
-		return VKParsingType
+		return VKGroupParsingType
 	}
 
 	if strings.Contains(urlLower, "vk.ru") {
-		return VKParsingType
+		return VKGroupParsingType
 	}
 
 	// Проверяем, содержит ли URL домен instagram.com

@@ -124,7 +124,7 @@ func (u *Usecase) processOneUrl(url, dir string, parsingType models.ParsingType)
 	)
 
 	switch parsingType {
-	case models.VKParsingType:
+	case models.VKGroupParsingType:
 		path, err = u.processVkVideo(url, dir)
 		if err != nil {
 			return "", err

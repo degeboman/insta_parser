@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"inst_parser/internal/usecase/parsing_account"
+	"inst_parser/internal/models"
 )
 
 type (
@@ -21,17 +21,17 @@ type (
 )
 
 type ParsingAccount struct {
-	logger  *slog.Logger
-	usecase *parsing_account.Usecase
+	logger        *slog.Logger
+	queueProvider QueueProvider
 }
 
 func NewParsingAccountsHandler(
 	log *slog.Logger,
-	usecase *parsing_account.Usecase,
+	queueProvider QueueProvider,
 ) *ParsingAccount {
 	return &ParsingAccount{
-		logger:  log,
-		usecase: usecase,
+		logger:        log,
+		queueProvider: queueProvider,
 	}
 }
 
@@ -76,11 +76,32 @@ func (h *ParsingAccount) ParsingAccount(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	go h.usecase.ParseAccount(
-		req.IsSelected,
-		req.SheetName,
-		req.SpreadsheetID,
-	)
+	//go h.usecase.ParseAccount(
+	//	req.IsSelected,
+	//	req.SheetName,
+	//	req.SpreadsheetID,
+	//)
+
+	if err := h.queueProvider.Enqueue(models.QueueRequest{
+		SpreadsheetID: req.SpreadsheetID,
+		SheetName:     req.SheetName,
+		IsSelected:    req.IsSelected,
+		Type:          1,
+	}); err != nil {
+		h.logger.Error("failed to enqueue spreadsheet item",
+			slog.String("spreadsheet_id", req.SpreadsheetID),
+			slog.String("err", err.Error()),
+		)
+
+		resp := ParsingUrlsResponse{
+			Success: false,
+			Message: "failed to enqueue spreadsheet item",
+		}
+
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
 
 	// Возвращаем успешный ответ
 	resp := ParsingAccountResponse{
