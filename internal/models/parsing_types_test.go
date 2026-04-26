@@ -40,7 +40,7 @@ func TestIsAvailableByParsingType(t *testing.T) {
 			name: "case 4",
 			args: args{
 				url:          "https://vk.com/clip-235319600_456239017",
-				parsingTypes: []ParsingType{InstagramParsingType, VKParsingType},
+				parsingTypes: []ParsingType{InstagramParsingType, VKGroupParsingType},
 			},
 			want: true,
 		},
@@ -48,7 +48,7 @@ func TestIsAvailableByParsingType(t *testing.T) {
 			name: "case 5",
 			args: args{
 				url:          "https://vk.com/clips-73430300?z=clip-73430300_456240003",
-				parsingTypes: []ParsingType{InstagramParsingType, VKParsingType},
+				parsingTypes: []ParsingType{InstagramParsingType, VKGroupParsingType},
 			},
 			want: true,
 		},

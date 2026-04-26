@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -21,7 +22,7 @@ func ParseSocialAccountURL(url string) (
 ) {
 	patterns := map[ParsingType]*regexp.Regexp{
 		InstagramParsingType: regexp.MustCompile(instagramPattern),
-		VKParsingType:        regexp.MustCompile(vkPattern),
+		VKGroupParsingType:   regexp.MustCompile(vkPattern),
 		TelegramParsingType:  regexp.MustCompile(telegramPattern),
 		YoutubeParsingType:   regexp.MustCompile(youtubePattern),
 		TiktokParsingType:    regexp.MustCompile(tiktokPattern),
@@ -33,7 +34,7 @@ func ParseSocialAccountURL(url string) (
 			continue
 		}
 
-		if platformName == VKParsingType {
+		if platformName == VKGroupParsingType {
 			// matches[1] — числовой ID (club/id), matches[2] — slug
 			numericID := ""
 			if len(matches) > 1 && matches[1] != "" {
@@ -45,7 +46,10 @@ func ParseSocialAccountURL(url string) (
 			}
 
 			if numericID != "" {
-				return fmt.Sprintf("-%s", numericID), platformName, nil
+				if strings.Contains(url, "club") {
+					return "-" + numericID, platformName, nil
+				}
+				return numericID, platformName, nil
 			}
 			if slug != "" {
 				return slug, platformName, nil

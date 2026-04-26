@@ -63,6 +63,34 @@ func (r *Repository) GroupID(groupName string) (string, error) {
 	return strconv.Itoa(-groupInfo.Groups[0].ID), nil // Для групп ID отрицательный
 }
 
+func (r *Repository) UserID(userName string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := r.limiter.Wait(ctx); err != nil {
+		return "", err
+	}
+
+	const vkApiMethod = "users.get"
+	var userInfo []struct {
+		ID int `json:"id"`
+	}
+
+	params := api.Params{
+		"user_ids": userName,
+	}
+
+	if err := r.vkApi.RequestUnmarshal(vkApiMethod, &userInfo, params); err != nil {
+		return "", fmt.Errorf("failed to get user info: user_id = %s, err = %w", userName, err)
+	}
+
+	if len(userInfo) == 0 {
+		return "", fmt.Errorf("user not found: user_id = %s", userName)
+	}
+
+	return strconv.Itoa(userInfo[0].ID), nil
+}
+
 func (r *Repository) PostInfo(postID string) (*models.VKClipInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -220,6 +248,17 @@ func (r *Repository) ClipInfo(ownerID, clipID int) (*models.VKClipInfo, error) {
 }
 
 func (r *Repository) getAdvertiserInfo(eridURL string) (models.AdvertiserInfoFromUrl, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := r.limiter.Wait(ctx); err != nil {
+		return models.AdvertiserInfoFromUrl{}, err
+	}
+
+	if eridURL == "" {
+		return models.AdvertiserInfoFromUrl{}, fmt.Errorf("empty erid url")
+	}
+
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}

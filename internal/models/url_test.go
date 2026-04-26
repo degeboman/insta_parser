@@ -27,7 +27,7 @@ func Test_parseSocialAccountURL(t *testing.T) {
 			args: args{
 				url: "https://vk.com/smotri_video_tovarov",
 			},
-			wantParsingType: VKParsingType,
+			wantParsingType: VKGroupParsingType,
 			wantAccount:     "smotri_video_tovarov",
 			wantErr:         false,
 		},
@@ -36,7 +36,7 @@ func Test_parseSocialAccountURL(t *testing.T) {
 			args: args{
 				url: "https://vk.ru/smotri_video_tovarov",
 			},
-			wantParsingType: VKParsingType,
+			wantParsingType: VKGroupParsingType,
 			wantAccount:     "smotri_video_tovarov",
 			wantErr:         false,
 		},
@@ -90,7 +90,7 @@ func Test_parseSocialAccountURL(t *testing.T) {
 			args: args{
 				url: "https://vk.com/club230144742",
 			},
-			wantParsingType: VKParsingType,
+			wantParsingType: VKGroupParsingType,
 			wantAccount:     "-230144742",
 			wantErr:         false,
 		},
@@ -99,7 +99,7 @@ func Test_parseSocialAccountURL(t *testing.T) {
 			args: args{
 				url: "https://vk.com/id522157183",
 			},
-			wantParsingType: VKParsingType,
+			wantParsingType: VKGroupParsingType,
 			wantAccount:     "-522157183",
 			wantErr:         false,
 		},
@@ -117,7 +117,7 @@ func Test_parseSocialAccountURL(t *testing.T) {
 			args: args{
 				url: "https://vk.ru/id41699827",
 			},
-			wantParsingType: VKParsingType,
+			wantParsingType: VKGroupParsingType,
 			wantAccount:     "-41699827",
 			wantErr:         false,
 		},

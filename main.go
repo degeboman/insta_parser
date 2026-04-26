@@ -1,7 +1,7 @@
 package main
 
 import (
-	"inst_parser/internal/repository/video_downloader"
+	"context"
 	"log"
 	"net/http"
 
@@ -13,11 +13,13 @@ import (
 	"inst_parser/internal/repository/google_sheet"
 	"inst_parser/internal/repository/progress"
 	"inst_parser/internal/repository/rapid"
+	"inst_parser/internal/repository/video_downloader"
 	"inst_parser/internal/repository/vk"
 	"inst_parser/internal/repository/youtube"
 	"inst_parser/internal/usecase/download_videos"
 	"inst_parser/internal/usecase/parsing_account"
 	"inst_parser/internal/usecase/parsing_urls"
+	"inst_parser/internal/usecase/queue"
 	"inst_parser/internal/usecase/search_url"
 
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -40,6 +42,7 @@ func main() {
 
 	l.Info("Starting server")
 
+	queue := queue.NewQueue()
 	googleSheetRepo := google_sheet.NewRepository(cfg.GoogleDriveCredentials)
 	progressSrv := progress.NewProgressTracker(googleSheetRepo.SheetsService)
 	urlSrv := search_url.NewUrlsService(l, googleSheetRepo.SheetsService)
@@ -73,11 +76,20 @@ func main() {
 
 	downloadVideosUsecase := download_videos.NewUsecase(l, videoDownloaderRepo, vkRepo, rapidRepo)
 
-	parsingUrlsHandler := handlers.NewParsingUrlsHandler(l, parsingUrlsUsecase)
+	parsingUrlsHandler := handlers.NewParsingUrlsHandler(l, queue)
 	clipMoneyParsingUrlHandler := handlers.NewClipMoneyParsingUrl(l, parsingUrlsUsecase)
-	parsingAccountHandler := handlers.NewParsingAccountsHandler(l, parsingAccountUsecase)
+	parsingAccountHandler := handlers.NewParsingAccountsHandler(l, queue)
 	clipMoneyParsingAccountHandler := handlers.NewClipMoneyParsingAccount(l, parsingAccountUsecase)
 	downloadVideosHandler := handlers.NewDownloadVideos(l, downloadVideosUsecase)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go queue.Watcher(
+		ctx,
+		parsingUrlsUsecase.ParseUrls,
+		parsingAccountUsecase.ParseAccount,
+	)
 
 	http.HandleFunc(constants.ParsingUrls, parsingUrlsHandler.ParsingUrls)
 	http.HandleFunc(constants.ParsingAccount, parsingAccountHandler.ParsingAccount)
