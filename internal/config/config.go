@@ -12,6 +12,7 @@ type Config struct {
 	VK                     VK
 	GoogleDriveCredentials GoogleDriveCredentials
 	Youtube                Youtube
+	Telegram               Telegram
 }
 
 func MustLoad() Config {

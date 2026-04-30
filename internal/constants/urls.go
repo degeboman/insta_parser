@@ -8,6 +8,7 @@ const (
 	ClipMoneyParsingUrl     = "/clip_money/parsing_url"
 	DownloadVideos          = "/download_videos"
 	DownloadVideosGet       = "/download_videos_get"
+	MessageSend             = "/send"
 )
 
 // rapid api urls
