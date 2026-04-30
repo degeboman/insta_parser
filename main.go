@@ -23,6 +23,7 @@ import (
 	"inst_parser/internal/usecase/queue"
 	"inst_parser/internal/usecase/search_url"
 
+	"github.com/rs/cors"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
@@ -94,19 +95,35 @@ func main() {
 		parsingAccountUsecase.ParseAccount,
 	)
 
-	http.HandleFunc(constants.ParsingUrls, parsingUrlsHandler.ParsingUrls)
-	http.HandleFunc(constants.ParsingAccount, parsingAccountHandler.ParsingAccount)
-	http.HandleFunc(constants.ClipMoneyParsingAccount, clipMoneyParsingAccountHandler.ClipMoneyParsingAccount)
-	http.HandleFunc(constants.ClipMoneyParsingUrl, clipMoneyParsingUrlHandler.ClipMoneyParsingUrl)
-	http.HandleFunc(constants.DownloadVideos, downloadVideosHandler.DownloadVideos)
-	http.HandleFunc(constants.DownloadVideosGet, downloadVideosHandler.DownloadVideosGet)
-	http.HandleFunc(constants.MessageSend, messageHandler.Send)
+	mux := http.NewServeMux()
+
+	mux.HandleFunc(constants.ParsingUrls, parsingUrlsHandler.ParsingUrls)
+	mux.HandleFunc(constants.ParsingAccount, parsingAccountHandler.ParsingAccount)
+	mux.HandleFunc(constants.ClipMoneyParsingAccount, clipMoneyParsingAccountHandler.ClipMoneyParsingAccount)
+	mux.HandleFunc(constants.ClipMoneyParsingUrl, clipMoneyParsingUrlHandler.ClipMoneyParsingUrl)
+	mux.HandleFunc(constants.DownloadVideos, downloadVideosHandler.DownloadVideos)
+	mux.HandleFunc(constants.DownloadVideosGet, downloadVideosHandler.DownloadVideosGet)
+	mux.HandleFunc(constants.MessageSend, messageHandler.Send)
+	mux.HandleFunc("/swagger/", httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"),
+	))
+
+	// Настройка CORS
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"POST", "GET", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type", "Accept", "Authorization"},
+		AllowCredentials: false,
+	})
+
+	// Оборачиваем роутер в CORS middleware
+	handler := c.Handler(mux)
 
 	http.HandleFunc("/swagger/", httpSwagger.Handler(
 		httpSwagger.URL("/swagger/doc.json"), // URL для вашей swagger документации
 	))
 
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err := http.ListenAndServe(":8080", handler); err != nil {
 		log.Fatal("Server failed to start:", err)
 	}
 }
