@@ -13,6 +13,7 @@ import (
 	"inst_parser/internal/repository/google_sheet"
 	"inst_parser/internal/repository/progress"
 	"inst_parser/internal/repository/rapid"
+	"inst_parser/internal/repository/tg"
 	"inst_parser/internal/repository/video_downloader"
 	"inst_parser/internal/repository/vk"
 	"inst_parser/internal/repository/youtube"
@@ -74,6 +75,7 @@ func main() {
 		rapidRepo,
 	)
 
+	tgClient := tg.NewClient(cfg.Telegram.BotToken, cfg.Telegram.ChatID)
 	downloadVideosUsecase := download_videos.NewUsecase(l, videoDownloaderRepo, vkRepo, rapidRepo)
 
 	parsingUrlsHandler := handlers.NewParsingUrlsHandler(l, queue)
@@ -81,6 +83,7 @@ func main() {
 	parsingAccountHandler := handlers.NewParsingAccountsHandler(l, queue)
 	clipMoneyParsingAccountHandler := handlers.NewClipMoneyParsingAccount(l, parsingAccountUsecase)
 	downloadVideosHandler := handlers.NewDownloadVideos(l, downloadVideosUsecase)
+	messageHandler := handlers.NewMessageHandler(tgClient)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -97,6 +100,7 @@ func main() {
 	http.HandleFunc(constants.ClipMoneyParsingUrl, clipMoneyParsingUrlHandler.ClipMoneyParsingUrl)
 	http.HandleFunc(constants.DownloadVideos, downloadVideosHandler.DownloadVideos)
 	http.HandleFunc(constants.DownloadVideosGet, downloadVideosHandler.DownloadVideosGet)
+	http.HandleFunc(constants.MessageSend, messageHandler.Send)
 
 	http.HandleFunc("/swagger/", httpSwagger.Handler(
 		httpSwagger.URL("/swagger/doc.json"), // URL для вашей swagger документации
