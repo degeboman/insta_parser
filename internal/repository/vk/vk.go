@@ -211,6 +211,12 @@ func (r *Repository) ClipInfo(ownerID, clipID int) (*models.VKClipInfo, error) {
 	if response.Count == 0 {
 		return nil, fmt.Errorf("clip not found")
 	}
+	if response.Items == nil {
+		return nil, fmt.Errorf("clip not found")
+	}
+	if len(response.Items) == 0 {
+		return nil, fmt.Errorf("clip not found")
+	}
 
 	item := response.Items[0]
 
