@@ -204,10 +204,6 @@ func (u *Usecase) ClipMoneyParseUrl(
 func (u *Usecase) processBatchUrl(
 	urls []*models.UrlInfo,
 ) []*models.ResultRowUrl {
-	const (
-		instaTimeout = 550 * time.Millisecond
-		vkTimeout    = 250 * time.Millisecond
-	)
 	results := make([]*models.ResultRowUrl, len(urls))
 
 	for i, url := range urls {

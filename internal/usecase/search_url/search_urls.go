@@ -142,7 +142,7 @@ func (s *UrlsService) GetUrls(
 
 		startLetter := getColumnLetter(startCol)
 		endLetter := getColumnLetter(endCol)
-		readRange = fmt.Sprintf("%s!%s3:%s", sheetName, startLetter, endLetter)
+		readRange = fmt.Sprintf("%s!%s3:%s1000", sheetName, startLetter, endLetter)
 	} else if positions.CheckboxColumnIndex > 0 {
 		// Если есть колонка чекбокса, читаем диапазон от минимальной до максимальной колонки
 		startCol := min(positions.URLColumnIndex, positions.CheckboxColumnIndex)
@@ -150,11 +150,11 @@ func (s *UrlsService) GetUrls(
 
 		startLetter := getColumnLetter(startCol)
 		endLetter := getColumnLetter(endCol)
-		readRange = fmt.Sprintf("%s!%s3:%s", sheetName, startLetter, endLetter)
+		readRange = fmt.Sprintf("%s!%s3:%s1000", sheetName, startLetter, endLetter)
 	} else {
 		// Получаем только колонку с URL
 		colLetter := getColumnLetter(positions.URLColumnIndex)
-		readRange = fmt.Sprintf("%s!%s3:%s", sheetName, colLetter, colLetter)
+		readRange = fmt.Sprintf("%s!%s3:%s1000", sheetName, colLetter, colLetter)
 	}
 
 	resp, err := s.sheetsService.Spreadsheets.Values.Get(spreadsheetID, readRange).Do()

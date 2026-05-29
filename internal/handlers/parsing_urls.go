@@ -78,12 +78,6 @@ func (h *ParsingUrlsHandler) ParsingUrls(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	//go h.usecase.ParseUrls(
-	//	req.IsSelected,
-	//	req.SheetName,
-	//	req.SpreadsheetID,
-	//)
-
 	if err := h.queueProvider.Enqueue(models.QueueRequest{
 		SpreadsheetID: req.SpreadsheetID,
 		SheetName:     req.SheetName,
