@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"inst_parser/internal/repository/queue"
 	"log"
 	"net/http"
 
@@ -17,10 +18,10 @@ import (
 	"inst_parser/internal/repository/video_downloader"
 	"inst_parser/internal/repository/vk"
 	"inst_parser/internal/repository/youtube"
+	"inst_parser/internal/store"
 	"inst_parser/internal/usecase/download_videos"
 	"inst_parser/internal/usecase/parsing_account"
 	"inst_parser/internal/usecase/parsing_urls"
-	"inst_parser/internal/usecase/queue"
 	"inst_parser/internal/usecase/search_url"
 
 	"github.com/rs/cors"
@@ -43,9 +44,17 @@ func main() {
 	l := logger.NewLogger()
 
 	l.Info("Starting server")
+	//client := godo.NewFromToken(token)
+	//cluster, _, err := client.Databases.Get(ctx, "9cc10173-e9ea-4176-9dbc-a4cee4c4ff30")
 
-	queue := queue.NewQueue()
+	valkey := store.NewValKeyClient(cfg.ValKey)
+	defer valkey.Close()
+
 	googleSheetRepo := google_sheet.NewRepository(cfg.GoogleDriveCredentials)
+	queueCli, err := queue.New(valkey, l)
+	if err != nil {
+		log.Fatal(err)
+	}
 	progressSrv := progress.NewProgressTracker(googleSheetRepo.SheetsService)
 	urlSrv := search_url.NewUrlsService(l, googleSheetRepo.SheetsService)
 	vkRepo := vk.NewRepository(l, cfg.VK.Token)
@@ -79,9 +88,9 @@ func main() {
 	tgClient := tg.NewClient(cfg.Telegram.BotToken, cfg.Telegram.ChatID)
 	downloadVideosUsecase := download_videos.NewUsecase(l, videoDownloaderRepo, vkRepo, rapidRepo)
 
-	parsingUrlsHandler := handlers.NewParsingUrlsHandler(l, queue)
+	parsingUrlsHandler := handlers.NewParsingUrlsHandler(l, queueCli, parsingUrlsUsecase)
 	clipMoneyParsingUrlHandler := handlers.NewClipMoneyParsingUrl(l, parsingUrlsUsecase)
-	parsingAccountHandler := handlers.NewParsingAccountsHandler(l, queue)
+	parsingAccountHandler := handlers.NewParsingAccountsHandler(l, queueCli, parsingAccountUsecase)
 	clipMoneyParsingAccountHandler := handlers.NewClipMoneyParsingAccount(l, parsingAccountUsecase)
 	downloadVideosHandler := handlers.NewDownloadVideos(l, downloadVideosUsecase)
 	messageHandler := handlers.NewMessageHandler(tgClient)
@@ -89,7 +98,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go queue.Watcher(
+	go queueCli.Watcher(
 		ctx,
 		parsingUrlsUsecase.ParseUrls,
 		parsingAccountUsecase.ParseAccount,

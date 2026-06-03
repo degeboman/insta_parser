@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"inst_parser/internal/models"
 	"log/slog"
@@ -18,22 +19,32 @@ type ParsingUrlsResponse struct {
 	Message string `json:"message"`
 }
 
+type parserProvider interface {
+	ParseUrls(
+		isSelected bool,
+		sheetName, spreadsheetID string,
+	)
+}
+
 type QueueProvider interface {
-	Enqueue(req models.QueueRequest) error
+	Push(ctx context.Context, req models.QueueRequest) error
 }
 
 type ParsingUrlsHandler struct {
-	logger        *slog.Logger
-	queueProvider QueueProvider
+	logger         *slog.Logger
+	queueProvider  QueueProvider
+	parserProvider parserProvider
 }
 
 func NewParsingUrlsHandler(
 	logger *slog.Logger,
 	queueProvider QueueProvider,
+	parserProvider parserProvider,
 ) *ParsingUrlsHandler {
 	return &ParsingUrlsHandler{
-		logger:        logger,
-		queueProvider: queueProvider,
+		logger:         logger,
+		queueProvider:  queueProvider,
+		parserProvider: parserProvider,
 	}
 }
 
@@ -78,14 +89,17 @@ func (h *ParsingUrlsHandler) ParsingUrls(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := h.queueProvider.Enqueue(models.QueueRequest{
-		SpreadsheetID: req.SpreadsheetID,
-		SheetName:     req.SheetName,
-		IsSelected:    req.IsSelected,
-		Type:          0,
-	}); err != nil {
+	if err := h.queueProvider.Push(
+		context.Background(),
+		models.QueueRequest{
+			SpreadsheetID: req.SpreadsheetID,
+			SheetName:     req.SheetName,
+			IsSelected:    req.IsSelected,
+			Type:          0,
+		}); err != nil {
 		h.logger.Error("failed to enqueue spreadsheet item",
 			slog.String("spreadsheet_id", req.SpreadsheetID),
+			slog.String("table", req.SheetName),
 			slog.String("err", err.Error()),
 		)
 

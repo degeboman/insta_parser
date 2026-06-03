@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -20,18 +21,28 @@ type (
 	}
 )
 
+type parserAccountProvider interface {
+	ParseAccount(
+		isSelected bool,
+		sheetName, spreadsheetID string,
+	)
+}
+
 type ParsingAccount struct {
-	logger        *slog.Logger
-	queueProvider QueueProvider
+	logger                *slog.Logger
+	queueProvider         QueueProvider
+	parserAccountProvider parserAccountProvider
 }
 
 func NewParsingAccountsHandler(
 	log *slog.Logger,
 	queueProvider QueueProvider,
+	parserAccountProvider parserAccountProvider,
 ) *ParsingAccount {
 	return &ParsingAccount{
-		logger:        log,
-		queueProvider: queueProvider,
+		logger:                log,
+		queueProvider:         queueProvider,
+		parserAccountProvider: parserAccountProvider,
 	}
 }
 
@@ -76,20 +87,17 @@ func (h *ParsingAccount) ParsingAccount(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	//go h.usecase.ParseAccount(
-	//	req.IsSelected,
-	//	req.SheetName,
-	//	req.SpreadsheetID,
-	//)
-
-	if err := h.queueProvider.Enqueue(models.QueueRequest{
-		SpreadsheetID: req.SpreadsheetID,
-		SheetName:     req.SheetName,
-		IsSelected:    req.IsSelected,
-		Type:          1,
-	}); err != nil {
+	if err := h.queueProvider.Push(
+		context.Background(),
+		models.QueueRequest{
+			SpreadsheetID: req.SpreadsheetID,
+			SheetName:     req.SheetName,
+			IsSelected:    req.IsSelected,
+			Type:          0,
+		}); err != nil {
 		h.logger.Error("failed to enqueue spreadsheet item",
 			slog.String("spreadsheet_id", req.SpreadsheetID),
+			slog.String("table", req.SheetName),
 			slog.String("err", err.Error()),
 		)
 

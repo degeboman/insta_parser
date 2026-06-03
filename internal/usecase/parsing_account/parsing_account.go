@@ -72,9 +72,9 @@ type (
 
 	TrackerService interface {
 		EnsureProgressSheet(spreadsheetID string) error
-		StartParsing(spreadsheetID string, totalURLs int) (int, error)
-		UpdateProgress(spreadsheetID string, row, progress int) error
-		FinishParsing(spreadsheetID string, row int) error
+		StartParsing(spreadsheetID, tableName string, totalURLs int) (int, error)
+		UpdateProgress(spreadsheetID string, count, row, progress int) (err error)
+		FinishParsing(spreadsheetID string, row int, errMsg string) error
 	}
 
 	TiktokDataProvider interface {
@@ -101,6 +101,7 @@ func (u *Usecase) ParseAccount(
 	isSelected bool,
 	sheetName, spreadsheetID string,
 ) {
+	var err error
 	u.logger.Info("ParsingAccount request started",
 		slog.String("spreadsheet_id", spreadsheetID),
 		slog.String("sheet_name", sheetName),
@@ -116,7 +117,8 @@ func (u *Usecase) ParseAccount(
 		)
 	}
 
-	accountUrls, err := u.accountUrlsProvider.AccountUrls(isSelected, sheetName, spreadsheetID)
+	var accountUrls []*models.UrlInfo
+	accountUrls, err = u.accountUrlsProvider.AccountUrls(isSelected, sheetName, spreadsheetID)
 	if err != nil {
 		u.logger.Error("Failed to find account urls",
 			slog.String("spreadsheet_id", spreadsheetID),
@@ -142,18 +144,19 @@ func (u *Usecase) ParseAccount(
 		slog.String("sheet_name", sheetName),
 	)
 
-	progressRow, errStartParsing := u.trackerService.StartParsing(spreadsheetID, len(accountUrls))
-	if errStartParsing != nil {
+	var progressRow int
+	progressRow, err = u.trackerService.StartParsing(spreadsheetID, sheetName, len(accountUrls))
+	if err != nil {
 		u.logger.Error("Error starting progress tracking",
 			slog.String("spreadsheet_id", spreadsheetID),
-			slog.String("err", errStartParsing.Error()),
+			slog.String("err", err.Error()),
 		)
 	}
 	defer func() {
-		if err = u.trackerService.FinishParsing(spreadsheetID, progressRow); err != nil {
+		if err = u.trackerService.FinishParsing(spreadsheetID, progressRow, err.Error()); err != nil {
 			u.logger.Error("Error finishing progress tracking",
 				slog.String("spreadsheet_id", spreadsheetID),
-				slog.String("err", errStartParsing.Error()),
+				slog.String("err", err.Error()),
 			)
 		}
 	}()
@@ -265,7 +268,7 @@ func (u *Usecase) ParseAccount(
 		}
 
 		processedCount++
-		if updateProgressErr := u.trackerService.UpdateProgress(spreadsheetID, progressRow, processedCount); updateProgressErr != nil {
+		if updateProgressErr := u.trackerService.UpdateProgress(spreadsheetID, 0, progressRow, processedCount); updateProgressErr != nil {
 			u.logger.Error("Error updating progress", err)
 		}
 	}

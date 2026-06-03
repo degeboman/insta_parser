@@ -54,9 +54,9 @@ type (
 
 	TrackerService interface {
 		EnsureProgressSheet(spreadsheetID string) error
-		StartParsing(spreadsheetID string, totalURLs int) (int, error)
-		UpdateProgress(spreadsheetID string, row, progress int) error
-		FinishParsing(spreadsheetID string, row int) error
+		StartParsing(spreadsheetID string, tableName string, totalURLs int) (int, error)
+		UpdateProgress(spreadsheetID string, count, row, progress int) (err error)
+		FinishParsing(spreadsheetID string, row int, errMsg string) error
 	}
 
 	VKInfoProvider interface {
@@ -92,10 +92,47 @@ func (u *Usecase) ParseUrls(
 	isSelected bool,
 	sheetName, spreadsheetID string,
 ) {
-	u.logger.Info("ParseUrls started")
-	defer u.logger.Info("ParseUrls finished")
+	var err error
+	u.logger.Info("ParseUrls started",
+		slog.String("spreadsheet_id", spreadsheetID),
+		slog.String("sheet_name", sheetName),
+	)
+	defer u.logger.Info("ParseUrls finished",
+		slog.String("spreadsheet_id", spreadsheetID),
+		slog.String("sheet_name", sheetName),
+	)
 
-	urls, err := u.urlsProvider.FindUrls(
+	if err = u.trackerService.EnsureProgressSheet(spreadsheetID); err != nil {
+		u.logger.Error("Failed to ensure progress sheet",
+			slog.String("spreadsheet_id", spreadsheetID),
+			slog.String("sheet_name", sheetName),
+			slog.String("err", err.Error()),
+		)
+	}
+
+	var progressRow int
+	progressRow, err = u.trackerService.StartParsing(spreadsheetID, sheetName, 0)
+	if err != nil {
+		u.logger.Error("Error starting progress tracking",
+			slog.String("spreadsheet_id", spreadsheetID),
+			slog.String("sheet_name", sheetName),
+			slog.String("err", err.Error()),
+		)
+	}
+	defer func() {
+		var errMsg string
+		if err != nil {
+			errMsg = err.Error()
+		}
+		if err = u.trackerService.FinishParsing(spreadsheetID, progressRow, errMsg); err != nil {
+			u.logger.Error("Error finishing progress tracking",
+				slog.String("err", err.Error()),
+			)
+		}
+	}()
+
+	var urls []*models.UrlInfo
+	urls, err = u.urlsProvider.FindUrls(
 		isSelected,
 		[]models.ParsingType{
 			models.InstagramParsingType,
@@ -123,27 +160,13 @@ func (u *Usecase) ParseUrls(
 		return
 	}
 
-	if err = u.trackerService.EnsureProgressSheet(spreadsheetID); err != nil {
-		u.logger.Error("Failed to ensure progress sheet",
+	if err = u.trackerService.UpdateProgress(spreadsheetID, len(urls), progressRow, 0); err != nil {
+		u.logger.Error("Error updating progress",
 			slog.String("spreadsheet_id", spreadsheetID),
+			slog.String("sheet_name", sheetName),
 			slog.String("err", err.Error()),
 		)
 	}
-
-	progressRow, errStartParsing := u.trackerService.StartParsing(spreadsheetID, len(urls))
-	if errStartParsing != nil {
-		u.logger.Error("Error starting progress tracking",
-			slog.String("spreadsheet_id", spreadsheetID),
-			slog.String("err", errStartParsing.Error()),
-		)
-	}
-	defer func() {
-		if err = u.trackerService.FinishParsing(spreadsheetID, progressRow); err != nil {
-			u.logger.Error("Error finishing progress tracking",
-				slog.String("err", err.Error()),
-			)
-		}
-	}()
 
 	results := make([]*models.ResultRowUrl, 0, len(urls))
 
@@ -160,7 +183,7 @@ func (u *Usecase) ParseUrls(
 
 		processedCount += len(batch)
 
-		if err := u.trackerService.UpdateProgress(spreadsheetID, progressRow, processedCount); err != nil {
+		if err = u.trackerService.UpdateProgress(spreadsheetID, 0, progressRow, processedCount); err != nil {
 			u.logger.Error("Error updating progress",
 				slog.String("spreadsheet_id", spreadsheetID),
 				slog.String("sheet_name", sheetName),
@@ -169,7 +192,7 @@ func (u *Usecase) ParseUrls(
 		}
 	}
 
-	if err := u.dataInserter.InsertData(
+	if err = u.dataInserter.InsertData(
 		spreadsheetID,
 		constants.DataTable,
 		"A:I",

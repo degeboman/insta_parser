@@ -10,14 +10,14 @@ import (
 	"google.golang.org/api/sheets/v4"
 )
 
-const headerRow = 1
+const (
+	headerRow  = 1
+	maxLogRows = 10
+)
 
 type Tracker struct {
 	sheetsService *sheets.Service
 }
-
-//todo refactor with journal
-//todo add queue
 
 func NewProgressTracker(sheetsService *sheets.Service) *Tracker {
 	return &Tracker{
@@ -26,13 +26,11 @@ func NewProgressTracker(sheetsService *sheets.Service) *Tracker {
 }
 
 func (pt *Tracker) EnsureProgressSheet(spreadsheetID string) error {
-	// Получаем информацию о таблице
 	spreadsheet, err := pt.sheetsService.Spreadsheets.Get(spreadsheetID).Do()
 	if err != nil {
 		return fmt.Errorf("failed to get spreadsheet: %w", err)
 	}
 
-	// Проверяем, существует ли лист прогресса
 	sheetExists := false
 	for _, sheet := range spreadsheet.Sheets {
 		if sheet.Properties.Title == constants.ProgressTable {
@@ -41,7 +39,6 @@ func (pt *Tracker) EnsureProgressSheet(spreadsheetID string) error {
 		}
 	}
 
-	// Если лист не существует, создаем его
 	if !sheetExists {
 		req := &sheets.Request{
 			AddSheet: &sheets.AddSheetRequest{
@@ -60,7 +57,6 @@ func (pt *Tracker) EnsureProgressSheet(spreadsheetID string) error {
 			return fmt.Errorf("failed to create progress sheet: %w", err)
 		}
 
-		// Добавляем заголовки
 		if err := pt.writeHeaders(spreadsheetID); err != nil {
 			return err
 		}
@@ -70,13 +66,15 @@ func (pt *Tracker) EnsureProgressSheet(spreadsheetID string) error {
 }
 
 func (pt *Tracker) writeHeaders(spreadsheetID string) error {
-	headers := []interface{}{"Начало парсинга", "Всего ссылок", "Обработано", "Конец парсинга"}
+	headers := []interface{}{
+		"Имя таблицы", "Начало парсинга", "Всего ссылок", "Обработано", "Конец парсинга", "Статус", "Ошибка",
+	}
 
 	valueRange := &sheets.ValueRange{
 		Values: [][]interface{}{headers},
 	}
 
-	rangeStr := fmt.Sprintf("%s!A%d:D%d", constants.ProgressTable, headerRow, headerRow)
+	rangeStr := fmt.Sprintf("%s!A%d:G%d", constants.ProgressTable, headerRow, headerRow)
 	_, err := pt.sheetsService.Spreadsheets.Values.Update(
 		spreadsheetID,
 		rangeStr,
@@ -86,7 +84,61 @@ func (pt *Tracker) writeHeaders(spreadsheetID string) error {
 	return err
 }
 
-func (pt *Tracker) StartParsing(spreadsheetID string, totalURLs int) (int, error) {
+func (pt *Tracker) shiftRowsDown(spreadsheetID string, sheetID int64) error {
+	rangeStr := fmt.Sprintf("%s!A2:G%d", constants.ProgressTable, headerRow+maxLogRows)
+	resp, err := pt.sheetsService.Spreadsheets.Values.Get(spreadsheetID, rangeStr).Do()
+	if err != nil {
+		return fmt.Errorf("failed to read existing rows: %w", err)
+	}
+
+	var requests []*sheets.Request
+
+	if len(resp.Values) >= maxLogRows {
+		lastRow := int64(headerRow + maxLogRows)
+		requests = append(requests, &sheets.Request{
+			DeleteDimension: &sheets.DeleteDimensionRequest{
+				Range: &sheets.DimensionRange{
+					SheetId:    sheetID,
+					Dimension:  "ROWS",
+					StartIndex: lastRow - 1,
+					EndIndex:   lastRow,
+				},
+			},
+		})
+	}
+
+	requests = append(requests, &sheets.Request{
+		InsertDimension: &sheets.InsertDimensionRequest{
+			Range: &sheets.DimensionRange{
+				SheetId:    sheetID,
+				Dimension:  "ROWS",
+				StartIndex: 1,
+				EndIndex:   2,
+			},
+			InheritFromBefore: false,
+		},
+	})
+
+	_, err = pt.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, &sheets.BatchUpdateSpreadsheetRequest{
+		Requests: requests,
+	}).Do()
+	return err
+}
+
+func (pt *Tracker) getSheetID(spreadsheetID string) (int64, error) {
+	spreadsheet, err := pt.sheetsService.Spreadsheets.Get(spreadsheetID).Do()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get spreadsheet: %w", err)
+	}
+	for _, sheet := range spreadsheet.Sheets {
+		if sheet.Properties.Title == constants.ProgressTable {
+			return sheet.Properties.SheetId, nil
+		}
+	}
+	return 0, fmt.Errorf("sheet %q not found", constants.ProgressTable)
+}
+
+func (pt *Tracker) StartParsing(spreadsheetID, tableName string, totalURLs int) (int, error) {
 	moscow, err := time.LoadLocation("Europe/Moscow")
 	if err != nil {
 		log.Printf("Warning: could not load Moscow timezone, using local: %v", err)
@@ -94,13 +146,21 @@ func (pt *Tracker) StartParsing(spreadsheetID string, totalURLs int) (int, error
 	}
 	startTime := time.Now().In(moscow).Format(time.DateTime)
 
-	row := []interface{}{startTime, totalURLs, 0, ""}
+	sheetID, err := pt.getSheetID(spreadsheetID)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := pt.shiftRowsDown(spreadsheetID, sheetID); err != nil {
+		return 0, fmt.Errorf("failed to shift rows: %w", err)
+	}
+
+	row := []interface{}{tableName, startTime, totalURLs, 0, "", "🟡", ""}
 	valueRange := &sheets.ValueRange{
 		Values: [][]interface{}{row},
 	}
 
-	// Добавляем новую строку после заголовка
-	rangeStr := fmt.Sprintf("%s!A2:D2", constants.ProgressTable)
+	rangeStr := fmt.Sprintf("%s!A2:G2", constants.ProgressTable)
 	_, err = pt.sheetsService.Spreadsheets.Values.Update(
 		spreadsheetID,
 		rangeStr,
@@ -111,16 +171,29 @@ func (pt *Tracker) StartParsing(spreadsheetID string, totalURLs int) (int, error
 		return 0, fmt.Errorf("failed to start parsing progress: %w", err)
 	}
 
-	return 2, nil // Возвращаем номер строки
+	return 2, nil
 }
 
-func (pt *Tracker) UpdateProgress(spreadsheetID string, row, progress int) error {
+func (pt *Tracker) UpdateProgress(spreadsheetID string, count, row, progress int) (err error) {
 	valueRange := &sheets.ValueRange{
 		Values: [][]interface{}{{progress}},
 	}
 
-	rangeStr := fmt.Sprintf("%s!C%d", constants.ProgressTable, row)
-	_, err := pt.sheetsService.Spreadsheets.Values.Update(
+	if count != 0 {
+		value := &sheets.ValueRange{
+			Values: [][]interface{}{{count}},
+		}
+
+		rangeStr := fmt.Sprintf("%s!C%d", constants.ProgressTable, row)
+		_, err = pt.sheetsService.Spreadsheets.Values.Update(
+			spreadsheetID,
+			rangeStr,
+			value,
+		).ValueInputOption("RAW").Do()
+	}
+
+	rangeStr := fmt.Sprintf("%s!D%d", constants.ProgressTable, row)
+	_, err = pt.sheetsService.Spreadsheets.Values.Update(
 		spreadsheetID,
 		rangeStr,
 		valueRange,
@@ -129,7 +202,9 @@ func (pt *Tracker) UpdateProgress(spreadsheetID string, row, progress int) error
 	return err
 }
 
-func (pt *Tracker) FinishParsing(spreadsheetID string, row int) error {
+// FinishParsing завершает запись: проставляет время окончания, статус 🟢.
+// Если errMsg не пустой — статус 🔴 и сообщение записывается в столбец G.
+func (pt *Tracker) FinishParsing(spreadsheetID string, row int, errMsg string) error {
 	moscow, err := time.LoadLocation("Europe/Moscow")
 	if err != nil {
 		log.Printf("Warning: could not load Moscow timezone, using local: %v", err)
@@ -137,11 +212,17 @@ func (pt *Tracker) FinishParsing(spreadsheetID string, row int) error {
 	}
 	endTime := time.Now().In(moscow).Format(time.DateTime)
 
-	valueRange := &sheets.ValueRange{
-		Values: [][]interface{}{{endTime}},
+	status := "🟢"
+	if errMsg != "" {
+		status = "🔴"
 	}
 
-	rangeStr := fmt.Sprintf("%s!D%d", constants.ProgressTable, row)
+	valueRange := &sheets.ValueRange{
+		Values: [][]interface{}{{endTime, status, errMsg}},
+	}
+
+	// E — конец парсинга, F — статус, G — ошибка
+	rangeStr := fmt.Sprintf("%s!E%d:G%d", constants.ProgressTable, row, row)
 	_, err = pt.sheetsService.Spreadsheets.Values.Update(
 		spreadsheetID,
 		rangeStr,
