@@ -13,6 +13,7 @@ const (
 	telegramPattern  = `(?:https?://)?(?:www\.)?t\.me/([^/?#]+)`
 	youtubePattern   = `(?:https?://)?(?:www\.)?youtube\.com/(?:c/|channel/)?(@[^/?#]+)`
 	tiktokPattern    = `(?:https?://)?(?:www\.)?tiktok\.com/@([^/?#]+)`
+	pinterestPattern = `(?:https?://)?(?:www\.)?pinterest\.com/([^/?#]+)`
 )
 
 func ParseSocialAccountURL(url string) (
@@ -26,6 +27,7 @@ func ParseSocialAccountURL(url string) (
 		TelegramParsingType:  regexp.MustCompile(telegramPattern),
 		YoutubeParsingType:   regexp.MustCompile(youtubePattern),
 		TiktokParsingType:    regexp.MustCompile(tiktokPattern),
+		PinterestParsingType: regexp.MustCompile(pinterestPattern),
 	}
 
 	for platformName, re := range patterns {

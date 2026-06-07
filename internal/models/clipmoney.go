@@ -56,6 +56,40 @@ func ClipMoneyResultRowFromTiktokVideo(data []*TikTokVideo, accountUrl, accountN
 	return result
 }
 
+func ClipMoneyResultRowFromPinterestVideo(data []*PinterestVideo, accountUrl, accountName string) []*ClipMoneyResultRow {
+	result := make([]*ClipMoneyResultRow, len(data))
+
+	for i := range data {
+		var publishDate string
+		if data[i].CreatedAt != "" {
+			timeCreatedAt, _ := time.Parse(time.RFC1123, data[i].CreatedAt)
+			publishDate = utils.PublishDate(timeCreatedAt)
+		}
+
+		var likes int
+		for _, v := range data[i].ReactionCounts {
+			likes += v
+		}
+		shares := data[i].RepinCount
+
+		result[i] = &ClipMoneyResultRow{
+			AccountUrl:  accountUrl,
+			URL:         fmt.Sprintf("https://www.pinterest.com/pin/%s/", data[i].ID),
+			Description: data[i].Description,
+			Views:       0,
+			Likes:       int64(likes),
+			Comments:    int64(data[i].CommentCount),
+			Shares:      int64(shares),
+			ER:          utils.GetER(int64(likes), int64(shares), int64(data[i].CommentCount), 0),
+			Virality:    utils.GetVirality(int64(shares), 0),
+			ParsingDate: utils.ParsingDate(),
+			PublishDate: publishDate,
+		}
+	}
+
+	return result
+}
+
 func getTiktokUrl(username, videoId string) string {
 	return fmt.Sprintf("https://www.tiktok.com/@%s/video/%s", username, videoId)
 }

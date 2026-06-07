@@ -489,6 +489,75 @@ func (r *Repository) GetTiktokAccountIdByUsername(username string) (string, erro
 	return "", fmt.Errorf("failed to find account by username: %s", username)
 }
 
+func (r *Repository) GetPinterestPinsByUsername(info *models.UrlInfo) ([]*models.PinterestVideo, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	if r.rapidAPIKey == "" {
+		return nil, fmt.Errorf("RAPIDAPI_KEY is not set")
+	}
+
+	videos := make([]*models.PinterestVideo, 0, info.Count)
+
+	for len(videos) < info.Count {
+		if err := r.tiktokLimiter.Wait(ctx); err != nil {
+			return nil, err
+		}
+
+		// Создаем запрос с Query параметрами
+		req, err := http.NewRequestWithContext(
+			ctx,
+			http.MethodGet,
+			constants.RapidPinterestGetPins,
+			nil,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %v", err)
+		}
+
+		// Добавляем query параметры
+		q := req.URL.Query()
+		q.Add("username", info.URL)
+		req.URL.RawQuery = q.Encode()
+
+		// Устанавливаем заголовки
+		req.Header.Set("x-rapidapi-key", r.rapidAPIKey)
+		req.Header.Add("x-rapidapi-host", "pinterest-scraper5.p.rapidapi.com")
+		req.Header.Add("Content-Type", "application/json")
+
+		resp, err := r.httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to do request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		// Обрабатываем ответ
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return nil, fmt.Errorf("err http code: %d, body: %s", resp.StatusCode, string(body))
+		}
+
+		var data models.RapidGetPinsResponse
+		if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+			return nil, fmt.Errorf("pinterest failed to parse JSON: %v, url: %s", err, info.URL)
+		}
+
+		if len(data.Data.Pins) == 0 {
+			break
+		}
+
+		for _, video := range data.Data.Pins {
+			if len(videos) >= info.Count {
+				break
+			}
+
+			videos = append(videos, &video)
+		}
+	}
+
+	return videos, nil
+}
+
 func getVkUserClipsEndpoint(identification, cursor string) string {
 	endpoint := fmt.Sprintf("/users/clips?owner_id=chplk:%s", identification)
 	if cursor != "" {

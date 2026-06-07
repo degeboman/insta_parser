@@ -93,7 +93,7 @@ func (h *ParsingAccount) ParsingAccount(w http.ResponseWriter, r *http.Request) 
 			SpreadsheetID: req.SpreadsheetID,
 			SheetName:     req.SheetName,
 			IsSelected:    req.IsSelected,
-			Type:          0,
+			Type:          1,
 		}); err != nil {
 		h.logger.Error("failed to enqueue spreadsheet item",
 			slog.String("spreadsheet_id", req.SpreadsheetID),
