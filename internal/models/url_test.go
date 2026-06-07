@@ -121,6 +121,15 @@ func Test_parseSocialAccountURL(t *testing.T) {
 			wantAccount:     "-41699827",
 			wantErr:         false,
 		},
+		{
+			name: "case 13",
+			args: args{
+				url: "https://www.pinterest.com/Clemff_",
+			},
+			wantParsingType: PinterestParsingType,
+			wantAccount:     "Clemff_",
+			wantErr:         false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

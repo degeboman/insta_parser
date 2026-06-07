@@ -11,6 +11,7 @@ const (
 	YoutubeParsingType   ParsingType = "youtube"
 	TiktokParsingType    ParsingType = "tiktok"
 	TelegramParsingType  ParsingType = "telegram"
+	PinterestParsingType ParsingType = "pinterest"
 	UnknownParsingType   ParsingType = "unknown"
 )
 
@@ -48,6 +49,10 @@ func ParsingTypeByUrl(url string) ParsingType {
 
 	if strings.Contains(urlLower, "tiktok.com") {
 		return TiktokParsingType
+	}
+
+	if strings.Contains(urlLower, "pinterest.com") {
+		return PinterestParsingType
 	}
 
 	return UnknownParsingType

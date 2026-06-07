@@ -18,6 +18,7 @@ type Usecase struct {
 	instagramGetReelsInfoForAccount InstagramGetReelsInfoForAccount
 	youtubeChannelShortsData        YoutubeChannelShortsData
 	tiktokDataProvider              TiktokDataProvider
+	pinterestDataProvider           PinterestDataProvider
 }
 
 func NewUsecase(
@@ -30,6 +31,7 @@ func NewUsecase(
 	instagramGetReelsInfoForAccount InstagramGetReelsInfoForAccount,
 	youtubeChannelShortsData YoutubeChannelShortsData,
 	tiktokDataProvider TiktokDataProvider,
+	pinterestDataProvider PinterestDataProvider,
 ) *Usecase {
 	return &Usecase{
 		logger:                          log,
@@ -41,6 +43,7 @@ func NewUsecase(
 		instagramGetReelsInfoForAccount: instagramGetReelsInfoForAccount,
 		youtubeChannelShortsData:        youtubeChannelShortsData,
 		tiktokDataProvider:              tiktokDataProvider,
+		pinterestDataProvider:           pinterestDataProvider,
 	}
 }
 
@@ -80,6 +83,10 @@ type (
 	TiktokDataProvider interface {
 		GetTiktokAccountIdByUsername(username string) (string, error)
 		GetTiktokVideoByUserId(info *models.UrlInfo) ([]*models.TikTokVideo, error)
+	}
+
+	PinterestDataProvider interface {
+		GetPinterestPinsByUsername(info *models.UrlInfo) ([]*models.PinterestVideo, error)
 	}
 
 	DataInserter interface {
@@ -153,7 +160,11 @@ func (u *Usecase) ParseAccount(
 		)
 	}
 	defer func() {
-		if err = u.trackerService.FinishParsing(spreadsheetID, progressRow, err.Error()); err != nil {
+		var errMsg string
+		if err != nil {
+			errMsg = err.Error()
+		}
+		if err = u.trackerService.FinishParsing(spreadsheetID, progressRow, errMsg); err != nil {
 			u.logger.Error("Error finishing progress tracking",
 				slog.String("spreadsheet_id", spreadsheetID),
 				slog.String("err", err.Error()),
@@ -192,7 +203,7 @@ func (u *Usecase) ParseAccount(
 			if insertErr := u.dataInserter.InsertData(
 				spreadsheetID,
 				constants.AccountTable,
-				"A:I",
+				"A:K",
 				models.VKClipsInfoToInterface(result),
 			); insertErr != nil {
 				u.logger.Error("Failed to insert groups data", slog.String("err", insertErr.Error()))
@@ -215,7 +226,7 @@ func (u *Usecase) ParseAccount(
 			if insertErr := u.dataInserter.InsertData(
 				spreadsheetID,
 				constants.AccountTable,
-				"A:I",
+				"A:K",
 				models.InstagramReelInfoToInterface(result),
 			); insertErr != nil {
 				u.logger.Error("Failed to insert groups data", slog.String("err", insertErr.Error()))
@@ -240,7 +251,7 @@ func (u *Usecase) ParseAccount(
 			if insertErr := u.dataInserter.InsertData(
 				spreadsheetID,
 				constants.AccountTable,
-				"A:I",
+				"A:K",
 				models.YoutubeShortInfoApiResponseToInterface(result, accountUrl.URL),
 			); insertErr != nil {
 				u.logger.Error("Failed to insert groups data", slog.String("err", insertErr.Error()))
@@ -260,8 +271,28 @@ func (u *Usecase) ParseAccount(
 			if insertErr := u.dataInserter.InsertData(
 				spreadsheetID,
 				constants.AccountTable,
-				"A:I",
+				"A:K",
 				models.TikTokVideoApiResponseToInterface(result, accountUrl.URL),
+			); insertErr != nil {
+				u.logger.Error("Failed to insert groups data", slog.String("err", insertErr.Error()))
+			}
+		case models.PinterestParsingType:
+			result, err := u.processPinterestAccount(
+				accountName,
+				accountUrl,
+			)
+			if err != nil {
+				u.logger.Error("Failed to get pinterest video info",
+					slog.String("account_name", accountName),
+					slog.String("err", err.Error()),
+				)
+			}
+
+			if insertErr := u.dataInserter.InsertData(
+				spreadsheetID,
+				constants.AccountTable,
+				"A:K",
+				models.PinterestVideoApiResponseToInterface(result, accountName),
 			); insertErr != nil {
 				u.logger.Error("Failed to insert groups data", slog.String("err", insertErr.Error()))
 			}
@@ -351,6 +382,22 @@ func (u *Usecase) ClipMoneyParseAccount(
 		}
 
 		return models.ClipMoneyResultRowFromTiktokVideo(result, accountUrl, accountName), nil
+	case models.PinterestParsingType:
+		result, err := u.processPinterestAccount(
+			accountName,
+			&models.UrlInfo{
+				URL:   accountUrl,
+				Count: 30,
+			},
+		)
+		if err != nil {
+			u.logger.Error("Failed to get pinterest video info",
+				slog.String("account_name", accountName),
+				slog.String("err", err.Error()),
+			)
+		}
+
+		return models.ClipMoneyResultRowFromPinterestVideo(result, accountUrl, accountName), nil
 	}
 
 	return nil, fmt.Errorf("unknown parsingType: %s", parsingType)
@@ -382,44 +429,6 @@ func (u *Usecase) processVKGroup(
 
 		}
 	}
-	//if _, err := strconv.Atoi(accountName); err == nil {
-	//	groupID, err = u.vkGroupIDProvider.GroupID(accountName)
-	//	if err != nil {
-	//		u.logger.Error("Failed to get group id",
-	//			slog.String("account_name", accountName),
-	//			slog.String("err", err.Error()),
-	//		)
-	//
-	//		groupID, err = u.vkGroupIDProvider.UserID(accountName[1:])
-	//		if err != nil {
-	//			u.logger.Error("Failed to get user id",
-	//				slog.String("account_name", accountName),
-	//				slog.String("err", err.Error()),
-	//			)
-	//		}
-	//	}
-	//
-	//	if groupID == "" {
-	//		groupID = accountName
-	//	}
-	//} else {
-	//	groupID, err = u.vkGroupIDProvider.GroupID(accountName)
-	//	if err != nil {
-	//		u.logger.Error("Failed to get group id",
-	//			slog.String("account_name", accountName),
-	//			slog.String("err", err.Error()),
-	//		)
-	//
-	//		groupID, err = u.vkGroupIDProvider.UserID(accountName)
-	//		if err != nil {
-	//			u.logger.Error("Failed to get user id",
-	//				slog.String("account_name", accountName),
-	//				slog.String("err", err.Error()),
-	//			)
-	//		}
-	//
-	//	}
-	//}
 
 	return u.vkClipInfoProvider.GetVKClipsInfoForGroup(
 		getAccountInfo(groupID, models.VKGroupParsingType, accountUrl),
@@ -464,6 +473,16 @@ func (u *Usecase) processTikTokAccount(
 
 	return u.tiktokDataProvider.GetTiktokVideoByUserId(&models.UrlInfo{
 		URL:   userID,
+		Count: accountUrl.Count,
+	})
+}
+
+func (u *Usecase) processPinterestAccount(
+	accountName string,
+	accountUrl *models.UrlInfo,
+) ([]*models.PinterestVideo, error) {
+	return u.pinterestDataProvider.GetPinterestPinsByUsername(&models.UrlInfo{
+		URL:   accountName,
 		Count: accountUrl.Count,
 	})
 }

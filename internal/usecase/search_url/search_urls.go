@@ -60,6 +60,7 @@ func (s *UrlsService) AccountUrls(
 			models.InstagramParsingType,
 			models.YoutubeParsingType,
 			models.TiktokParsingType,
+			models.PinterestParsingType,
 		})
 }
 

@@ -14,7 +14,6 @@ import (
 	"inst_parser/internal/repository/google_sheet"
 	"inst_parser/internal/repository/progress"
 	"inst_parser/internal/repository/rapid"
-	"inst_parser/internal/repository/tg"
 	"inst_parser/internal/repository/video_downloader"
 	"inst_parser/internal/repository/vk"
 	"inst_parser/internal/repository/youtube"
@@ -83,9 +82,9 @@ func main() {
 		rapidRepo,
 		youtubeRepo,
 		rapidRepo,
+		rapidRepo,
 	)
 
-	tgClient := tg.NewClient(cfg.Telegram.BotToken, cfg.Telegram.ChatID)
 	downloadVideosUsecase := download_videos.NewUsecase(l, videoDownloaderRepo, vkRepo, rapidRepo)
 
 	parsingUrlsHandler := handlers.NewParsingUrlsHandler(l, queueCli, parsingUrlsUsecase)
@@ -93,7 +92,6 @@ func main() {
 	parsingAccountHandler := handlers.NewParsingAccountsHandler(l, queueCli, parsingAccountUsecase)
 	clipMoneyParsingAccountHandler := handlers.NewClipMoneyParsingAccount(l, parsingAccountUsecase)
 	downloadVideosHandler := handlers.NewDownloadVideos(l, downloadVideosUsecase)
-	messageHandler := handlers.NewMessageHandler(tgClient)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -112,7 +110,6 @@ func main() {
 	mux.HandleFunc(constants.ClipMoneyParsingUrl, clipMoneyParsingUrlHandler.ClipMoneyParsingUrl)
 	mux.HandleFunc(constants.DownloadVideos, downloadVideosHandler.DownloadVideos)
 	mux.HandleFunc(constants.DownloadVideosGet, downloadVideosHandler.DownloadVideosGet)
-	mux.HandleFunc(constants.MessageSend, messageHandler.Send)
 	mux.HandleFunc("/swagger/", httpSwagger.Handler(
 		httpSwagger.URL("/swagger/doc.json"),
 	))

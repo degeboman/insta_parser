@@ -8,7 +8,6 @@ const (
 	ClipMoneyParsingUrl     = "/clip_money/parsing_url"
 	DownloadVideos          = "/download_videos"
 	DownloadVideosGet       = "/download_videos_get"
-	MessageSend             = "/send"
 )
 
 // rapid api urls
@@ -18,6 +17,7 @@ const (
 	RapidTiktokScraper                     = "https://tiktok-scraper7.p.rapidapi.com/"
 	RapidTiktokUserSearch                  = "https://tiktok-scraper7.p.rapidapi.com/user/search"
 	RapidTiktokUserPorts                   = "https://tiktok-scraper7.p.rapidapi.com/user/posts"
+	RapidPinterestGetPins                  = "https://pinterest-scraper5.p.rapidapi.com/pins"
 	RapidVkScraper                         = "https://vk-scraper.p.rapidapi.com/api/v1"
 )
 
