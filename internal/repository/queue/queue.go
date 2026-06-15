@@ -13,8 +13,10 @@ import (
 )
 
 const (
-	TypeURLs    = 0
-	TypeAccount = 1
+	TypeURLs      = 0
+	TypeAccount   = 1
+	TypeURLsV2    = 2
+	TypeAccountV2 = 3
 
 	streamKey     = "queue:requests"
 	consumerGroup = "queue:workers"
@@ -83,13 +85,15 @@ func (q *Queue) Push(ctx context.Context, req models.QueueRequest) error {
 func (q *Queue) Watcher(
 	ctx context.Context,
 	executeUrls func(isSelected bool, spreadsheetID, sheetName string),
+	executeUrlsV2 func(isSelected bool, spreadsheetID, sheetName string),
 	executeAccount func(isSelected bool, spreadsheetID, sheetName string),
+	executeAccountV2 func(isSelected bool, spreadsheetID, sheetName string),
 ) {
 	q.logger.Info("queue: watcher started")
 	defer q.logger.Info("queue: watcher stopped")
 
 	// Сначала обрабатываем pending-сообщения (упавшие в прошлый раз).
-	q.recoverPending(ctx, executeUrls, executeAccount)
+	q.recoverPending(ctx, executeUrls, executeUrlsV2, executeAccount, executeAccountV2)
 
 	for {
 		select {
@@ -118,7 +122,7 @@ func (q *Queue) Watcher(
 			continue
 		}
 
-		q.dispatch(req, executeUrls, executeAccount)
+		q.dispatch(req, executeUrls, executeUrlsV2, executeAccount, executeAccountV2)
 
 		if err := q.ackAndDelete(ctx, msgID); err != nil {
 			q.logger.Error("queue: ack/delete failed",
@@ -194,7 +198,9 @@ func (q *Queue) readOne(ctx context.Context) (msgID string, req models.QueueRequ
 func (q *Queue) dispatch(
 	req models.QueueRequest,
 	executeUrls func(bool, string, string),
+	executeUrlsV2 func(bool, string, string),
 	executeAccount func(bool, string, string),
+	executeAccountV2 func(bool, string, string),
 ) {
 	q.logger.Info("queue: dispatching request",
 		"spreadsheet_id", req.SpreadsheetID,
@@ -208,6 +214,10 @@ func (q *Queue) dispatch(
 		executeUrls(req.IsSelected, req.SheetName, req.SpreadsheetID)
 	case TypeAccount:
 		executeAccount(req.IsSelected, req.SheetName, req.SpreadsheetID)
+	case TypeAccountV2:
+		executeAccountV2(req.IsSelected, req.SheetName, req.SpreadsheetID)
+	case TypeURLsV2:
+		executeUrlsV2(req.IsSelected, req.SheetName, req.SpreadsheetID)
 	default:
 		q.logger.Warn("queue: unknown request type", "type", req.Type)
 	}
@@ -245,7 +255,9 @@ func (q *Queue) ackAndDelete(ctx context.Context, msgID string) error {
 func (q *Queue) recoverPending(
 	ctx context.Context,
 	executeUrls func(bool, string, string),
+	executeUrlsV2 func(bool, string, string),
 	executeAccount func(bool, string, string),
+	executeAccountV2 func(bool, string, string),
 ) {
 	q.logger.Info("queue: recovering pending messages")
 
@@ -295,7 +307,7 @@ func (q *Queue) recoverPending(
 			continue
 		}
 
-		q.dispatch(req, executeUrls, executeAccount)
+		q.dispatch(req, executeUrls, executeUrlsV2, executeAccount, executeAccountV2)
 
 		if err := q.ackAndDelete(ctx, entry.ID); err != nil {
 			q.logger.Error("queue: recover ack/delete failed", "id", entry.ID, "error", err)

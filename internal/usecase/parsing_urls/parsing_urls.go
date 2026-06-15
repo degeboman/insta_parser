@@ -2,12 +2,10 @@ package parsing_urls
 
 import (
 	"fmt"
-	"log/slog"
-	"strings"
-	"time"
-
 	"inst_parser/internal/constants"
 	"inst_parser/internal/models"
+	"log/slog"
+	"strings"
 )
 
 type Usecase struct {
@@ -46,6 +44,12 @@ func NewUsecase(
 type (
 	UrlsProvider interface {
 		FindUrls(
+			isSelected bool,
+			parsingTypes []models.ParsingType,
+			sheetName, spreadsheetID string,
+		) ([]*models.UrlInfo, error)
+
+		FindUrlsV2(
 			isSelected bool,
 			parsingTypes []models.ParsingType,
 			sheetName, spreadsheetID string,
@@ -207,6 +211,127 @@ func (u *Usecase) ParseUrls(
 	}
 }
 
+func (u *Usecase) ParseUrlsV2(
+	isSelected bool,
+	sheetName, spreadsheetID string,
+) {
+	var err error
+	u.logger.Info("ParseUrlsV2 started",
+		slog.String("spreadsheet_id", spreadsheetID),
+		slog.String("sheet_name", sheetName),
+	)
+	defer u.logger.Info("ParseUrls finished",
+		slog.String("spreadsheet_id", spreadsheetID),
+		slog.String("sheet_name", sheetName),
+	)
+
+	if err = u.trackerService.EnsureProgressSheet(spreadsheetID); err != nil {
+		u.logger.Error("Failed to ensure progress sheet",
+			slog.String("spreadsheet_id", spreadsheetID),
+			slog.String("sheet_name", sheetName),
+			slog.String("err", err.Error()),
+		)
+	}
+
+	var progressRow int
+	progressRow, err = u.trackerService.StartParsing(spreadsheetID, sheetName, 0)
+	if err != nil {
+		u.logger.Error("Error starting progress tracking",
+			slog.String("spreadsheet_id", spreadsheetID),
+			slog.String("sheet_name", sheetName),
+			slog.String("err", err.Error()),
+		)
+	}
+	defer func() {
+		var errMsg string
+		if err != nil {
+			errMsg = err.Error()
+		}
+		if err = u.trackerService.FinishParsing(spreadsheetID, progressRow, errMsg); err != nil {
+			u.logger.Error("Error finishing progress tracking",
+				slog.String("err", err.Error()),
+			)
+		}
+	}()
+
+	var urls []*models.UrlInfo
+	urls, err = u.urlsProvider.FindUrlsV2(
+		isSelected,
+		[]models.ParsingType{
+			models.InstagramParsingType,
+			models.VKGroupParsingType,
+			models.YoutubeParsingType,
+			models.TiktokParsingType,
+		},
+		sheetName,
+		spreadsheetID,
+	)
+	if err != nil {
+		u.logger.Error("Failed to find urls",
+			slog.String("spreadsheet_id", spreadsheetID),
+			slog.String("sheet_name", sheetName),
+			slog.String("err", err.Error()),
+		)
+		return
+	}
+
+	if len(urls) == 0 {
+		u.logger.Warn("Not found urls for parsing",
+			slog.String("spreadsheet_id", spreadsheetID),
+			slog.String("sheet_name", sheetName),
+		)
+		return
+	}
+
+	if err = u.trackerService.UpdateProgress(spreadsheetID, len(urls), progressRow, 0); err != nil {
+		u.logger.Error("Error updating progress",
+			slog.String("spreadsheet_id", spreadsheetID),
+			slog.String("sheet_name", sheetName),
+			slog.String("err", err.Error()),
+		)
+	}
+
+	results := make([]*models.ResultRowUrl, 0, len(urls))
+
+	var processedCount int
+	for i := 0; i < len(urls); i += batchSize {
+		end := i + batchSize
+		if end > len(urls) {
+			end = len(urls)
+		}
+
+		batch := urls[i:end]
+		batchResults := u.processBatchUrl(batch)
+		results = append(results, batchResults...)
+
+		processedCount += len(batch)
+
+		if err = u.trackerService.UpdateProgress(spreadsheetID, 0, progressRow, processedCount); err != nil {
+			u.logger.Error("Error updating progress",
+				slog.String("spreadsheet_id", spreadsheetID),
+				slog.String("sheet_name", sheetName),
+				slog.String("err", err.Error()),
+			)
+		}
+	}
+
+	for _, v := range results {
+		if err = u.dataInserter.InsertData(
+			spreadsheetID,
+			sheetName,
+			fmt.Sprintf("%s%d:%s%d", constants.ColumnViewsIndex, v.RowIndex, constants.ColumnDescriptionIndex, v.RowIndex),
+			models.ResultRowsToInterfaceV2(results),
+		); err != nil {
+			u.logger.Error("ParsingUrls URLs returned an error",
+				slog.String("spreadsheet_id", spreadsheetID),
+				slog.String("sheet_name", sheetName),
+				slog.String("err", err.Error()),
+			)
+			return
+		}
+	}
+}
+
 func (u *Usecase) ClipMoneyParseUrl(
 	url string,
 ) (*models.ResultRowUrl, error) {
@@ -250,6 +375,7 @@ func (u *Usecase) processBatchUrl(
 		if resultRow == nil {
 			continue
 		}
+		resultRow.RowIndex = url.RowIndex
 		results[i] = resultRow
 	}
 
@@ -259,11 +385,6 @@ func (u *Usecase) processBatchUrl(
 func (u *Usecase) processUrl(
 	url string,
 ) (*models.ResultRowUrl, error) {
-	const (
-		instaTimeout = 550 * time.Millisecond
-		vkTimeout    = 250 * time.Millisecond
-	)
-
 	var resultRow *models.ResultRowUrl
 	switch models.ParsingTypeByUrl(url) {
 	case models.InstagramParsingType:

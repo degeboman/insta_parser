@@ -163,13 +163,13 @@ func TestUrlsService_GetUrls(t *testing.T) {
 				log:           tt.fields.log,
 				sheetsService: tt.fields.sheetsService,
 			}
-			got, err := s.GetUrls(tt.fields.spreadsheetID, tt.args.sheetName, tt.args.positions, tt.args.parsingTypes)
+			got, err := s.getUrls(tt.fields.spreadsheetID, tt.args.sheetName, tt.args.positions, tt.args.parsingTypes)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetUrls() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("getUrls() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetUrls() got = %v, want %v", got, tt.want)
+				t.Errorf("getUrls() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
