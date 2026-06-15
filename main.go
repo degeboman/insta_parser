@@ -88,6 +88,7 @@ func main() {
 	downloadVideosUsecase := download_videos.NewUsecase(l, videoDownloaderRepo, vkRepo, rapidRepo)
 
 	parsingUrlsHandler := handlers.NewParsingUrlsHandler(l, queueCli, parsingUrlsUsecase)
+	parsingUrlsHandlerV2 := handlers.NewParsingUrlsV2Handler(l, queueCli, parsingUrlsUsecase)
 	clipMoneyParsingUrlHandler := handlers.NewClipMoneyParsingUrl(l, parsingUrlsUsecase)
 	parsingAccountHandler := handlers.NewParsingAccountsHandler(l, queueCli, parsingAccountUsecase)
 	clipMoneyParsingAccountHandler := handlers.NewClipMoneyParsingAccount(l, parsingAccountUsecase)
@@ -99,12 +100,15 @@ func main() {
 	go queueCli.Watcher(
 		ctx,
 		parsingUrlsUsecase.ParseUrls,
+		parsingUrlsUsecase.ParseUrlsV2,
 		parsingAccountUsecase.ParseAccount,
+		parsingAccountUsecase.ParseAccountV2,
 	)
 
 	mux := http.NewServeMux()
 
 	mux.HandleFunc(constants.ParsingUrls, parsingUrlsHandler.ParsingUrls)
+	mux.HandleFunc(constants.ParsingUrlsV2, parsingUrlsHandlerV2.ParsingUrls)
 	mux.HandleFunc(constants.ParsingAccount, parsingAccountHandler.ParsingAccount)
 	mux.HandleFunc(constants.ClipMoneyParsingAccount, clipMoneyParsingAccountHandler.ClipMoneyParsingAccount)
 	mux.HandleFunc(constants.ClipMoneyParsingUrl, clipMoneyParsingUrlHandler.ClipMoneyParsingUrl)

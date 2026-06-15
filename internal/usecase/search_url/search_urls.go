@@ -3,6 +3,7 @@ package search_url
 import (
 	"errors"
 	"fmt"
+	"inst_parser/internal/constants"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -33,7 +34,20 @@ func (s *UrlsService) FindUrls(isSelected bool, parsingTypes []models.ParsingTyp
 		columnsPositions.CheckboxColumnIndex = -1
 	}
 
-	return s.GetUrls(spreadsheetID, sheetName, columnsPositions, parsingTypes)
+	return s.getUrls(spreadsheetID, sheetName, columnsPositions, parsingTypes)
+}
+
+func (s *UrlsService) FindUrlsV2(isSelected bool, parsingTypes []models.ParsingType, sheetName, spreadsheetID string) ([]*models.UrlInfo, error) {
+	columnsPositions := &models.ColumnPositions{
+		URLColumnIndex:      constants.ColumnUrlsVideoIndex,
+		CheckboxColumnIndex: constants.ColumnIsParseIndex,
+	}
+
+	if !isSelected {
+		columnsPositions.CheckboxColumnIndex = -1
+	}
+
+	return s.getUrlsV2(spreadsheetID, sheetName, columnsPositions, parsingTypes)
 }
 
 func (s *UrlsService) AccountUrls(
@@ -51,7 +65,33 @@ func (s *UrlsService) AccountUrls(
 		columnsPositions.CheckboxColumnIndex = -1
 	}
 
-	return s.GetUrls(
+	return s.getUrls(
+		spreadsheetID,
+		sheetName,
+		columnsPositions,
+		[]models.ParsingType{
+			models.VKGroupParsingType,
+			models.InstagramParsingType,
+			models.YoutubeParsingType,
+			models.TiktokParsingType,
+			models.PinterestParsingType,
+		})
+}
+
+func (s *UrlsService) AccountUrlsV2(
+	isSelected bool,
+	sheetName, spreadsheetID string,
+) ([]*models.UrlInfo, error) {
+	columnsPositions := &models.ColumnPositions{
+		URLColumnIndex:      constants.ColumnUrlsAccountsIndex,
+		CheckboxColumnIndex: constants.ColumnIsParseIndex,
+	}
+
+	if !isSelected {
+		columnsPositions.CheckboxColumnIndex = -1
+	}
+
+	return s.getUrls(
 		spreadsheetID,
 		sheetName,
 		columnsPositions,
@@ -122,7 +162,7 @@ func (s *UrlsService) findColumns(spreadsheetID, sheetName, urlWord string) (*mo
 	return positions, nil
 }
 
-func (s *UrlsService) GetUrls(
+func (s *UrlsService) getUrls(
 	spreadsheetID, sheetName string,
 	positions *models.ColumnPositions,
 	parsingTypes []models.ParsingType,
@@ -245,6 +285,133 @@ func (s *UrlsService) GetUrls(
 	}
 
 	s.log.Info("Find urls", slog.Int("count", len(urls)))
+	return urls, nil
+}
+
+func (s *UrlsService) getUrlsV2(
+	spreadsheetID, sheetName string,
+	positions *models.ColumnPositions,
+	parsingTypes []models.ParsingType,
+) ([]*models.UrlInfo, error) {
+	if positions == nil {
+		return nil, fmt.Errorf("positions cannot be nil")
+	}
+
+	if positions.URLColumnIndex <= 0 {
+		return nil, fmt.Errorf("invalid url column index URL: %d", positions.URLColumnIndex)
+	}
+
+	var readRange string
+	if positions.CountColumnIndex > 0 {
+		// Если есть колонка чекбокса, читаем диапазон от минимальной до максимальной колонки
+		startCol := min(positions.URLColumnIndex, positions.CheckboxColumnIndex)
+		endCol := max(positions.CountColumnIndex, positions.CountColumnIndex)
+
+		startLetter := getColumnLetter(startCol)
+		endLetter := getColumnLetter(endCol)
+		readRange = fmt.Sprintf("%s!%s3:%s1000", sheetName, startLetter, endLetter)
+	} else if positions.CheckboxColumnIndex > 0 {
+		// Если есть колонка чекбокса, читаем диапазон от минимальной до максимальной колонки
+		startCol := min(positions.URLColumnIndex, positions.CheckboxColumnIndex)
+		endCol := max(positions.URLColumnIndex, positions.CheckboxColumnIndex)
+
+		startLetter := getColumnLetter(startCol)
+		endLetter := getColumnLetter(endCol)
+		readRange = fmt.Sprintf("%s!%s3:%s1000", sheetName, startLetter, endLetter)
+	} else {
+		// Получаем только колонку с URL
+		colLetter := getColumnLetter(positions.URLColumnIndex)
+		readRange = fmt.Sprintf("%s!%s3:%s1000", sheetName, colLetter, colLetter)
+	}
+
+	resp, err := s.sheetsService.Spreadsheets.Values.Get(spreadsheetID, readRange).Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read data: %w", err)
+	}
+
+	if len(resp.Values) == 0 {
+		return nil, nil
+	}
+
+	var urls []*models.UrlInfo
+
+	// Конвертируем 1-based индексы в 0-based для работы с массивом
+	urlColIndex := 0
+	checkboxColIndex := -1
+	countColIndex := -1
+	if positions.CheckboxColumnIndex > 0 {
+		checkboxColIndex = positions.CheckboxColumnIndex - positions.URLColumnIndex
+	}
+	if positions.CountColumnIndex > 0 {
+		countColIndex = positions.CountColumnIndex - positions.URLColumnIndex
+	}
+
+	// Обрабатываем каждую строку
+	for rowIndex, row := range resp.Values {
+		if len(row) == 0 {
+			continue
+		}
+		// Получаем URL
+		urlCell := row[urlColIndex]
+		url, ok := urlCell.(string)
+		if !ok || strings.TrimSpace(url) == "" {
+			// Пропускаем пустые или нестроковые значения
+			continue
+		}
+
+		// Если есть колонка чекбокса, проверяем её значение
+		if checkboxColIndex >= 0 {
+			// Проверяем, что колонка чекбокса существует в строке
+			if checkboxColIndex >= len(row) {
+				s.log.Info("строка не содержит колонку чекбокса", slog.Int("row", rowIndex+3))
+				continue
+			}
+
+			checkboxCell := row[checkboxColIndex]
+			checked, ok := parseCheckboxValue(checkboxCell)
+			if !ok {
+				s.log.Info("некорректное значение чекбокса в строке", slog.Int("row", rowIndex+3))
+				continue
+			}
+
+			// Если чекбокс не отмечен, пропускаем строку
+			if !checked {
+				continue
+			}
+		}
+
+		var count string
+		if countColIndex >= 0 {
+			if countColIndex >= len(row) {
+				s.log.Info("строка не содержит колонку глубины", slog.Int("row", rowIndex+3))
+
+			}
+
+			countCell := row[countColIndex]
+			count, ok = countCell.(string)
+			if !ok {
+				// Пропускаем пустые или нестроковые значения
+				continue
+			}
+		}
+
+		url = strings.TrimSpace(url)
+		countInt, err := strconv.Atoi(strings.TrimSpace(count))
+		if err != nil {
+			countInt = 12
+		}
+
+		if models.IsAvailableByParsingType(url, parsingTypes) {
+			// Добавляем URL в результат
+			urls = append(urls, &models.UrlInfo{
+				URL:      url,
+				Count:    countInt,
+				RowIndex: rowIndex + 3,
+			})
+		}
+	}
+
+	s.log.Info("Find urls V2", slog.Int("count", len(urls)))
 	return urls, nil
 }
 

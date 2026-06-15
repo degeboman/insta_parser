@@ -23,6 +23,7 @@ type ResultRowUrl struct {
 	ErID           string // айди рекламы, только для вк
 	INN            string // инн, только для вк
 	AdvertiserName string // имя рекламодателя, только для вк
+	RowIndex       int
 }
 
 type ResultRowAccount struct {

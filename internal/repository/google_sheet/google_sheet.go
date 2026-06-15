@@ -76,6 +76,33 @@ func (r *Repository) InsertData(
 	return nil
 }
 
+func (r *Repository) InsertDataV2(
+	spreadsheetID,
+	sheetName,
+	rangeData string,
+	data [][]interface{},
+) error {
+	if data == nil {
+		return nil
+	}
+
+	valueRange := &sheets.ValueRange{
+		Values: data,
+	}
+
+	_, err := r.SheetsService.Spreadsheets.Values.Append(
+		spreadsheetID,
+		fmt.Sprintf("%s!%s", sheetName, rangeData),
+		valueRange,
+	).ValueInputOption("USER_ENTERED").Do()
+
+	if err != nil {
+		return fmt.Errorf("failed to insert data: %v", err)
+	}
+
+	return nil
+}
+
 func getSheetService() (*sheets.Service, error) {
 	ctx := context.Background()
 

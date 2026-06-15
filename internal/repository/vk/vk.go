@@ -123,6 +123,11 @@ func (r *Repository) PostInfo(postID string) (*models.VKClipInfo, error) {
 
 	//todo добавить условие && response.Items[0].Attachments[0].Type == "video"
 	if len(response.Items[0].Attachments) > 0 {
+		videoID := response.Items[0].Attachments[0].Video.ID
+		ownerID := response.Items[0].Attachments[0].Video.OwnerID
+		if videoID != 0 && ownerID != 0 {
+			return r.ClipInfo(ownerID, videoID)
+		}
 		description = response.Items[0].Attachments[0].Video.Description
 		views = response.Items[0].Attachments[0].Video.Views
 		comments = response.Items[0].Attachments[0].Video.Comments

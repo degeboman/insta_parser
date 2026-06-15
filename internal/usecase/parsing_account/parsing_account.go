@@ -305,6 +305,207 @@ func (u *Usecase) ParseAccount(
 	}
 }
 
+func (u *Usecase) ParseAccountV2(
+	isSelected bool,
+	sheetName, spreadsheetID string,
+) {
+	var err error
+	u.logger.Info("ParsingAccount request started",
+		slog.String("spreadsheet_id", spreadsheetID),
+		slog.String("sheet_name", sheetName),
+	)
+	defer u.logger.Info("ParsingAccount request finished",
+		slog.String("spreadsheet_id", spreadsheetID),
+		slog.String("sheet_name", sheetName),
+	)
+
+	if err := u.trackerService.EnsureProgressSheet(spreadsheetID); err != nil {
+		u.logger.Error("Failed to ensure progress sheet",
+			slog.String("spreadsheet_id", spreadsheetID),
+		)
+	}
+
+	var accountUrls []*models.UrlInfo
+	accountUrls, err = u.accountUrlsProvider.AccountUrls(isSelected, sheetName, spreadsheetID)
+	if err != nil {
+		u.logger.Error("Failed to find account urls",
+			slog.String("spreadsheet_id", spreadsheetID),
+			slog.String("sheet_name", sheetName),
+			slog.String("err", err.Error()),
+		)
+
+		return
+	}
+
+	if len(accountUrls) == 0 {
+		u.logger.Warn("Not found urls for parsing",
+			slog.String("spreadsheet_id", spreadsheetID),
+			slog.String("sheet_name", sheetName),
+		)
+
+		return
+	}
+
+	u.logger.Info("Find groups urls successfully",
+		slog.Int("count", len(accountUrls)),
+		slog.String("spreadsheet_id", spreadsheetID),
+		slog.String("sheet_name", sheetName),
+	)
+
+	var progressRow int
+	progressRow, err = u.trackerService.StartParsing(spreadsheetID, sheetName, len(accountUrls))
+	if err != nil {
+		u.logger.Error("Error starting progress tracking",
+			slog.String("spreadsheet_id", spreadsheetID),
+			slog.String("err", err.Error()),
+		)
+	}
+	defer func() {
+		var errMsg string
+		if err != nil {
+			errMsg = err.Error()
+		}
+		if err = u.trackerService.FinishParsing(spreadsheetID, progressRow, errMsg); err != nil {
+			u.logger.Error("Error finishing progress tracking",
+				slog.String("spreadsheet_id", spreadsheetID),
+				slog.String("err", err.Error()),
+			)
+		}
+	}()
+
+	var processedCount int
+	for _, accountUrl := range accountUrls {
+		accountName, parsingType, err := models.ParseSocialAccountURL(accountUrl.URL)
+		if err != nil {
+			u.logger.Error("Failed to parse group url",
+				slog.String("url", accountUrl.URL),
+				slog.String("err", err.Error()),
+			)
+
+			return
+		}
+
+		switch parsingType {
+		case models.VKGroupParsingType:
+			result, processVkGroupErr := u.processVKGroup(
+				accountName,
+				accountUrl,
+			)
+			if processVkGroupErr != nil {
+				u.logger.Error("Failed to get clips info",
+					slog.String("spreadsheet_id", spreadsheetID),
+					slog.String("sheet_name", sheetName),
+					slog.String("accountName", accountName),
+					slog.String("err", processVkGroupErr.Error()),
+				)
+				continue
+			}
+
+			if insertErr := u.dataInserter.InsertData(
+				spreadsheetID,
+				constants.AccountTable,
+				"A:K",
+				models.VKClipsInfoToInterface(result),
+			); insertErr != nil {
+				u.logger.Error("Failed to insert groups data", slog.String("err", insertErr.Error()))
+			}
+		case models.InstagramParsingType:
+			result, processInstagramReelErr := u.processInstagramAccount(
+				accountName,
+				accountUrl,
+			)
+			if processInstagramReelErr != nil {
+				u.logger.Error("Failed to get reel info",
+					slog.String("spreadsheet_id", spreadsheetID),
+					slog.String("sheet_name", sheetName),
+					slog.String("accountName", accountName),
+					slog.String("err", processInstagramReelErr.Error()),
+				)
+				continue
+			}
+
+			if insertErr := u.dataInserter.InsertData(
+				spreadsheetID,
+				constants.AccountTable,
+				"A:K",
+				models.InstagramReelInfoToInterface(result),
+			); insertErr != nil {
+				u.logger.Error("Failed to insert groups data", slog.String("err", insertErr.Error()))
+			}
+
+		case models.YoutubeParsingType:
+			result, processYoutubeErr := u.processYoutubeAccount(
+				accountName,
+				accountUrl,
+			)
+			if processYoutubeErr != nil {
+				u.logger.Error("Failed to get shoers info",
+					slog.String("spreadsheet_id", spreadsheetID),
+					slog.String("sheet_name", sheetName),
+					slog.String("accountName", accountName),
+					slog.String("err", processYoutubeErr.Error()),
+				)
+
+				continue
+			}
+
+			if insertErr := u.dataInserter.InsertData(
+				spreadsheetID,
+				constants.AccountTable,
+				"A:K",
+				models.YoutubeShortInfoApiResponseToInterface(result, accountUrl.URL),
+			); insertErr != nil {
+				u.logger.Error("Failed to insert groups data", slog.String("err", insertErr.Error()))
+			}
+		case models.TiktokParsingType:
+			result, err := u.processTikTokAccount(
+				accountName,
+				accountUrl,
+			)
+			if err != nil {
+				u.logger.Error("Failed to get tiktok video info",
+					slog.String("account_name", accountName),
+					slog.String("err", err.Error()),
+				)
+			}
+
+			if insertErr := u.dataInserter.InsertData(
+				spreadsheetID,
+				constants.AccountTable,
+				"A:K",
+				models.TikTokVideoApiResponseToInterface(result, accountUrl.URL),
+			); insertErr != nil {
+				u.logger.Error("Failed to insert groups data", slog.String("err", insertErr.Error()))
+			}
+		case models.PinterestParsingType:
+			result, err := u.processPinterestAccount(
+				accountName,
+				accountUrl,
+			)
+			if err != nil {
+				u.logger.Error("Failed to get pinterest video info",
+					slog.String("account_name", accountName),
+					slog.String("err", err.Error()),
+				)
+			}
+
+			if insertErr := u.dataInserter.InsertData(
+				spreadsheetID,
+				constants.AccountTable,
+				"A:K",
+				models.PinterestVideoApiResponseToInterface(result, accountName),
+			); insertErr != nil {
+				u.logger.Error("Failed to insert groups data", slog.String("err", insertErr.Error()))
+			}
+		}
+
+		processedCount++
+		if updateProgressErr := u.trackerService.UpdateProgress(spreadsheetID, 0, progressRow, processedCount); updateProgressErr != nil {
+			u.logger.Error("Error updating progress", err)
+		}
+	}
+}
+
 func (u *Usecase) ClipMoneyParseAccount(
 	accountUrl string,
 ) ([]*models.ClipMoneyResultRow, error) {
