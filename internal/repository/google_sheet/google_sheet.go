@@ -6,16 +6,19 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"inst_parser/internal/config"
 
 	"golang.org/x/oauth2/google"
+	"golang.org/x/time/rate"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 )
 
 type Repository struct {
 	SheetsService *sheets.Service
+	limiter       *rate.Limiter
 }
 
 const credentialsPath = "credentials.json"
@@ -46,6 +49,7 @@ func NewRepository(cfg config.GoogleDriveCredentials) *Repository {
 
 	return &Repository{
 		SheetsService: srv,
+		limiter:       rate.NewLimiter(rate.Every(time.Second), 1),
 	}
 }
 
@@ -55,6 +59,13 @@ func (r *Repository) InsertData(
 	rangeData string,
 	data [][]interface{},
 ) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+	defer cancel()
+
+	if err := r.limiter.Wait(ctx); err != nil {
+		return err
+	}
+
 	if data == nil {
 		return nil
 	}

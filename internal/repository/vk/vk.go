@@ -34,7 +34,7 @@ func NewRepository(logger *slog.Logger, accessToken string) *Repository {
 }
 
 func (r *Repository) GroupID(groupName string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
 	if err := r.limiter.Wait(ctx); err != nil {
@@ -64,7 +64,7 @@ func (r *Repository) GroupID(groupName string) (string, error) {
 }
 
 func (r *Repository) UserID(userName string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
 	if err := r.limiter.Wait(ctx); err != nil {
@@ -92,7 +92,7 @@ func (r *Repository) UserID(userName string) (string, error) {
 }
 
 func (r *Repository) PostInfo(postID string) (*models.VKClipInfo, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
 	if err := r.limiter.Wait(ctx); err != nil {
@@ -195,7 +195,7 @@ func (r *Repository) PostInfo(postID string) (*models.VKClipInfo, error) {
 }
 
 func (r *Repository) ClipInfo(ownerID, clipID int) (*models.VKClipInfo, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
 	if err := r.limiter.Wait(ctx); err != nil {
@@ -259,7 +259,7 @@ func (r *Repository) ClipInfo(ownerID, clipID int) (*models.VKClipInfo, error) {
 }
 
 func (r *Repository) getAdvertiserInfo(eridURL string) (models.AdvertiserInfoFromUrl, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
 	if err := r.limiter.Wait(ctx); err != nil {
@@ -271,7 +271,7 @@ func (r *Repository) getAdvertiserInfo(eridURL string) (models.AdvertiserInfoFro
 	}
 
 	client := &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 100 * time.Second,
 	}
 
 	req, err := http.NewRequest("GET", eridURL, nil)
