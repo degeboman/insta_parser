@@ -87,6 +87,13 @@ type (
 			rangeData string,
 			data [][]interface{},
 		) error
+
+		InsertDataV2(
+			spreadsheetID,
+			sheetName,
+			rangeData string,
+			data [][]interface{},
+		) error
 	}
 )
 
@@ -316,7 +323,7 @@ func (u *Usecase) ParseUrlsV2(
 	}
 
 	for _, v := range results {
-		if err = u.dataInserter.InsertData(
+		if err = u.dataInserter.InsertDataV2(
 			spreadsheetID,
 			sheetName,
 			fmt.Sprintf("%s%d:%s%d", constants.ColumnViewsIndex, v.RowIndex, constants.ColumnDescriptionIndex, v.RowIndex),

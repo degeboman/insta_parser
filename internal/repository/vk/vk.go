@@ -19,9 +19,10 @@ import (
 )
 
 type Repository struct {
-	logger  *slog.Logger
-	vkApi   *api.VK
-	limiter *rate.Limiter
+	logger          *slog.Logger
+	vkApi           *api.VK
+	vkApiKateMobile *api.VK
+	limiter         *rate.Limiter
 }
 
 func NewRepository(logger *slog.Logger, accessToken string) *Repository {
