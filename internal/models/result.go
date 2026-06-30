@@ -147,28 +147,24 @@ func ResultRowsToInterface(results []*ResultRowUrl) [][]interface{} {
 	return values
 }
 
-func ResultRowsToInterfaceV2(results []*ResultRowUrl) [][]interface{} {
-	values := make([][]interface{}, 0, len(results))
+func ResultRowsToInterfaceV2(results *ResultRowUrl) [][]interface{} {
+	values := make([][]interface{}, 0, 1)
 
-	for i := range results {
-		if results == nil {
-			continue
-		}
-		if results[i] == nil {
-			continue
-		}
-		rowValues := []interface{}{
-			results[i].Views,
-			results[i].Likes,
-			results[i].Comments,
-			results[i].Shares,
-			results[i].ER,
-			results[i].Virality,
-			results[i].ParsingDate,
-			results[i].Description,
-		}
-		values = append(values, rowValues)
+	if results == nil {
+		return nil
 	}
+
+	rowValues := []interface{}{
+		results.Views,
+		results.Likes,
+		results.Comments,
+		results.Shares,
+		results.ER,
+		results.Virality,
+		results.ParsingDate,
+		results.Description,
+	}
+	values = append(values, rowValues)
 
 	return values
 }
