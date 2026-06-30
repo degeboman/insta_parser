@@ -93,6 +93,13 @@ func (r *Repository) InsertDataV2(
 	rangeData string,
 	data [][]interface{},
 ) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+	defer cancel()
+
+	if err := r.limiter.Wait(ctx); err != nil {
+		return err
+	}
+
 	if data == nil {
 		return nil
 	}
@@ -101,7 +108,7 @@ func (r *Repository) InsertDataV2(
 		Values: data,
 	}
 
-	_, err := r.SheetsService.Spreadsheets.Values.Append(
+	_, err := r.SheetsService.Spreadsheets.Values.Update(
 		spreadsheetID,
 		fmt.Sprintf("%s!%s", sheetName, rangeData),
 		valueRange,

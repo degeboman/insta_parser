@@ -43,8 +43,6 @@ func main() {
 	l := logger.NewLogger()
 
 	l.Info("Starting server")
-	//client := godo.NewFromToken(token)
-	//cluster, _, err := client.Databases.Get(ctx, "9cc10173-e9ea-4176-9dbc-a4cee4c4ff30")
 
 	valkey := store.NewValKeyClient(cfg.ValKey)
 	defer valkey.Close()
