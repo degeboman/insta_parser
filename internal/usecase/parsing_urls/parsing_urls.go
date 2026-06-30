@@ -327,7 +327,7 @@ func (u *Usecase) ParseUrlsV2(
 			spreadsheetID,
 			sheetName,
 			fmt.Sprintf("%s%d:%s%d", constants.ColumnViewsIndex, v.RowIndex, constants.ColumnDescriptionIndex, v.RowIndex),
-			models.ResultRowsToInterfaceV2(results),
+			models.ResultRowsToInterfaceV2(v),
 		); err != nil {
 			u.logger.Error("ParsingUrls URLs returned an error",
 				slog.String("spreadsheet_id", spreadsheetID),
