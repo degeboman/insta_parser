@@ -8,6 +8,8 @@ type ColumnPositions struct {
 
 // ResultRowUrl структура для вставки в excel таблицу
 type ResultRowUrl struct {
+	SpreadsheetID  string
+	Tablename      string
 	URL            string // Cсылка на видео
 	Description    string // Описание
 	Views          int64  // Охват факт

@@ -1,6 +1,7 @@
 package parsing_urls
 
 import (
+	"context"
 	"fmt"
 	"inst_parser/internal/constants"
 	"inst_parser/internal/models"
@@ -17,6 +18,7 @@ type Usecase struct {
 	vkInfoProvider            VKInfoProvider
 	youtubeShortInfoProvider  YoutubeShortInfoProvider
 	tiktokVideoInfoProvider   TiktokVideoInfoProvider
+	postgresProvider          PostgresProvider
 }
 
 func NewUsecase(
@@ -28,6 +30,7 @@ func NewUsecase(
 	trackerService TrackerService,
 	youtubeShortInfoProvider YoutubeShortInfoProvider,
 	tiktokVideoInfoProvider TiktokVideoInfoProvider,
+	postgresProvider PostgresProvider,
 ) *Usecase {
 	return &Usecase{
 		logger:                    logger,
@@ -38,6 +41,7 @@ func NewUsecase(
 		trackerService:            trackerService,
 		youtubeShortInfoProvider:  youtubeShortInfoProvider,
 		tiktokVideoInfoProvider:   tiktokVideoInfoProvider,
+		postgresProvider:          postgresProvider,
 	}
 }
 
@@ -80,6 +84,13 @@ type (
 		GetTiktokVideoInfo(url string) (*models.TikTokVideoApiResponse, error)
 	}
 
+	DataSaver interface {
+		CreateOrUpdateBatch(
+			ctx context.Context,
+			rows []*models.ResultRowUrl,
+		) error
+	}
+
 	DataInserter interface {
 		InsertData(
 			spreadsheetID,
@@ -94,6 +105,18 @@ type (
 			rangeData string,
 			data [][]interface{},
 		) error
+
+		InsertDataWithClear(
+			spreadsheetID,
+			sheetName,
+			rangeData string,
+			data [][]interface{},
+		) error
+	}
+
+	PostgresProvider interface {
+		GetAll(ctx context.Context, spreadsheetID string) ([]*models.ResultRowUrl, error)
+		CreateOrUpdateBatch(ctx context.Context, rows []*models.ResultRowUrl) error
 	}
 )
 
@@ -189,7 +212,7 @@ func (u *Usecase) ParseUrls(
 		}
 
 		batch := urls[i:end]
-		batchResults := u.processBatchUrl(batch)
+		batchResults := u.processBatchUrl(spreadsheetID, batch)
 		results = append(results, batchResults...)
 
 		processedCount += len(batch)
@@ -201,6 +224,13 @@ func (u *Usecase) ParseUrls(
 				slog.String("err", err.Error()),
 			)
 		}
+	}
+
+	if err = u.postgresProvider.CreateOrUpdateBatch(
+		context.Background(),
+		results,
+	); err != nil {
+		u.logger.Error("Error creating or updating batch")
 	}
 
 	if err = u.dataInserter.InsertData(
@@ -308,7 +338,7 @@ func (u *Usecase) ParseUrlsV2(
 		}
 
 		batch := urls[i:end]
-		batchResults := u.processBatchUrl(batch)
+		batchResults := u.processBatchUrl(spreadsheetID, batch)
 		results = append(results, batchResults...)
 
 		processedCount += len(batch)
@@ -320,6 +350,13 @@ func (u *Usecase) ParseUrlsV2(
 				slog.String("err", err.Error()),
 			)
 		}
+	}
+
+	if err = u.postgresProvider.CreateOrUpdateBatch(
+		context.Background(),
+		results,
+	); err != nil {
+		u.logger.Error("Error creating or updating batch")
 	}
 
 	for _, v := range results {
@@ -357,6 +394,7 @@ func (u *Usecase) ClipMoneyParseUrl(
 }
 
 func (u *Usecase) processBatchUrl(
+	spreadsheetID string,
 	urls []*models.UrlInfo,
 ) []*models.ResultRowUrl {
 	results := make([]*models.ResultRowUrl, len(urls))
@@ -382,6 +420,7 @@ func (u *Usecase) processBatchUrl(
 		if resultRow == nil {
 			continue
 		}
+		resultRow.SpreadsheetID = spreadsheetID
 		resultRow.RowIndex = url.RowIndex
 		results[i] = resultRow
 	}
@@ -547,4 +586,39 @@ func (u *Usecase) ParseTiktokVideo(url string) *models.ResultRowUrl {
 	}
 
 	return result
+}
+
+func (u *Usecase) GetUniqueUrls(spreadsheetID string) error {
+	urls, err := u.postgresProvider.GetAll(context.Background(), spreadsheetID)
+	if err != nil {
+		return err
+	}
+
+	//var resultRows []*models.ResultRowUrl
+	//for _, url := range urls {
+	//	result, err := u.processUrl(url.URL)
+	//	if err != nil {
+	//		u.logger.Error("Error processing url",
+	//			slog.String("url", url.URL),
+	//			slog.String("err", err.Error()))
+	//	}
+	//
+	//	resultRows = append(resultRows, result)
+	//}
+
+	if err = u.dataInserter.InsertDataWithClear(
+		spreadsheetID,
+		"Уникальные ссылки 2",
+		"B3",
+		models.ResultRowsUniqueToInterface(urls),
+	); err != nil {
+		u.logger.Error("ParsingUrls URLs returned an error",
+			slog.String("spreadsheet_id", spreadsheetID),
+			slog.String("sheet_name", "Уникальные ссылки"),
+			slog.String("err", err.Error()),
+		)
+		return err
+	}
+
+	return nil
 }

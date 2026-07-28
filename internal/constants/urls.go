@@ -4,6 +4,7 @@ package constants
 const (
 	ParsingUrls             = "/parsing_urls"
 	ParsingUrlsV2           = "/parsing_urls_v2"
+	GetUniqueUrls           = "/get_unique_urls"
 	ParsingAccount          = "/parsing_account"
 	ClipMoneyParsingAccount = "/clip_money/parsing_account"
 	ClipMoneyParsingUrl     = "/clip_money/parsing_url"

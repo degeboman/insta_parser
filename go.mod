@@ -40,6 +40,7 @@ require (
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
 	github.com/klauspost/compress v1.18.4 // indirect
+	github.com/lib/pq v1.12.3 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/swaggo/files v1.0.1 // indirect
 	github.com/valkey-io/valkey-go v1.0.75 // indirect

@@ -147,6 +147,34 @@ func ResultRowsToInterface(results []*ResultRowUrl) [][]interface{} {
 	return values
 }
 
+func ResultRowsUniqueToInterface(results []*ResultRowUrl) [][]interface{} {
+	values := make([][]interface{}, 0, len(results))
+
+	for i := range results {
+		if results == nil {
+			continue
+		}
+		if results[i] == nil {
+			continue
+		}
+		rowValues := []interface{}{
+			results[i].URL,
+			results[i].Views,
+			results[i].Likes,
+			results[i].Comments,
+			results[i].Shares,
+			results[i].ER,
+			results[i].Virality,
+			results[i].ParsingDate,
+			results[i].PublishDate,
+			results[i].Description,
+		}
+		values = append(values, rowValues)
+	}
+
+	return values
+}
+
 func ResultRowsToInterfaceV2(results *ResultRowUrl) [][]interface{} {
 	values := make([][]interface{}, 0, 1)
 
