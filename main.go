@@ -68,6 +68,7 @@ func main() {
 		progressSrv,
 		youtubeRepo,
 		rapidRepo,
+		queueCli,
 	)
 
 	parsingAccountUsecase := parsing_account.NewUsecase(
@@ -91,6 +92,7 @@ func main() {
 	parsingAccountHandler := handlers.NewParsingAccountsHandler(l, queueCli, parsingAccountUsecase)
 	clipMoneyParsingAccountHandler := handlers.NewClipMoneyParsingAccount(l, parsingAccountUsecase)
 	downloadVideosHandler := handlers.NewDownloadVideos(l, downloadVideosUsecase)
+	getUniqueHandlers := handlers.NewGetUniqueHandler(l, parsingUrlsUsecase)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -107,6 +109,7 @@ func main() {
 
 	mux.HandleFunc(constants.ParsingUrls, parsingUrlsHandler.ParsingUrls)
 	mux.HandleFunc(constants.ParsingUrlsV2, parsingUrlsHandlerV2.ParsingUrls)
+	mux.HandleFunc(constants.GetUniqueUrls, getUniqueHandlers.GetUniqueUrls)
 	mux.HandleFunc(constants.ParsingAccount, parsingAccountHandler.ParsingAccount)
 	mux.HandleFunc(constants.ClipMoneyParsingAccount, clipMoneyParsingAccountHandler.ClipMoneyParsingAccount)
 	mux.HandleFunc(constants.ClipMoneyParsingUrl, clipMoneyParsingUrlHandler.ClipMoneyParsingUrl)

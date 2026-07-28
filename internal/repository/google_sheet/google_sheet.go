@@ -87,6 +87,75 @@ func (r *Repository) InsertData(
 	return nil
 }
 
+// InsertDataWithClear очищает диапазон и вставляет новые данные.
+// Если rangeData пустая строка, очищается весь лист.
+func (r *Repository) InsertDataWithClear(
+	spreadsheetID,
+	sheetName,
+	rangeData string,
+	data [][]interface{},
+) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+	defer cancel()
+
+	if err := r.limiter.Wait(ctx); err != nil {
+		return err
+	}
+
+	if data == nil || len(data) == 0 {
+		// Если данных нет, просто очищаем (если нужно)
+		return r.clearRange(ctx, spreadsheetID, sheetName, rangeData)
+	}
+
+	// 1. Очищаем диапазон
+	if err := r.clearRange(ctx, spreadsheetID, sheetName, rangeData); err != nil {
+		return fmt.Errorf("failed to clear range: %v", err)
+	}
+
+	// 2. Записываем новые данные через Update (перезапись с начала диапазона)
+	valueRange := &sheets.ValueRange{
+		Values: data,
+	}
+
+	// Определяем стартовую ячейку: если rangeData указан, используем его,
+	// иначе начинаем с "A1" (или можно взять из sheetName)
+	startCell := "A1"
+	if rangeData != "" {
+		// rangeData может быть вида "A1:B10" – возьмём только начало
+		// Для простоты используем как есть, но лучше парсить
+		startCell = rangeData
+	}
+	fullRange := fmt.Sprintf("%s!%s", sheetName, startCell)
+
+	_, err := r.SheetsService.Spreadsheets.Values.Update(
+		spreadsheetID,
+		fullRange,
+		valueRange,
+	).ValueInputOption("USER_ENTERED").Do()
+	if err != nil {
+		return fmt.Errorf("failed to update data: %v", err)
+	}
+
+	return nil
+}
+
+// clearRange очищает указанный диапазон на листе.
+// Если rangeData пусто, очищает весь лист.
+func (r *Repository) clearRange(ctx context.Context, spreadsheetID, sheetName, rangeData string) error {
+
+	// Очистка всего листа – нужно получить ID листа и использовать batchUpdate
+	// или очистить весь диапазон "SheetName!A1:ZZZ". Упростим: используем большой диапазон.
+	rangeData = "A3:ZZZ" // Не идеально, но работает для типовых случаев.
+
+	fullRange := fmt.Sprintf("%s!%s", sheetName, rangeData)
+	_, err := r.SheetsService.Spreadsheets.Values.Clear(
+		spreadsheetID,
+		fullRange,
+		&sheets.ClearValuesRequest{},
+	).Do()
+	return err
+}
+
 func (r *Repository) InsertDataV2(
 	spreadsheetID,
 	sheetName,

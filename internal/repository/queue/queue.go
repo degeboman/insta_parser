@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"inst_parser/internal/models"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/valkey-io/valkey-go"
@@ -208,7 +209,7 @@ func (q *Queue) dispatch(
 		"type", req.Type,
 		"is_selected", req.IsSelected,
 	)
-
+	
 	switch req.Type {
 	case TypeURLs:
 		executeUrls(req.IsSelected, req.SheetName, req.SpreadsheetID)
@@ -341,4 +342,163 @@ func isNilError(err error) bool {
 		return vkErr.IsNil()
 	}
 	return false
+}
+
+// Вспомогательные функции для генерации ключей
+func dataKey(spreadsheetID string) string {
+	return "video:data:" + spreadsheetID
+}
+
+func viewsKey(spreadsheetID string) string {
+	return "video:views:" + spreadsheetID
+}
+
+// CreateOrUpdate – вставка или обновление одной записи
+func (q *Queue) CreateOrUpdate(ctx context.Context, row *models.ResultRowUrl) error {
+	data, err := json.Marshal(row)
+	if err != nil {
+		return fmt.Errorf("marshal row: %w", err)
+	}
+
+	// Hash: поле = URL, значение = JSON
+	cmd := q.client.B().Hset().Key(dataKey(row.SpreadsheetID)).FieldValue().FieldValue(row.URL, string(data)).Build()
+	if err := q.client.Do(ctx, cmd).Error(); err != nil {
+		return fmt.Errorf("hset: %w", err)
+	}
+
+	// Sorted Set: member = URL, score = Views
+	zCmd := q.client.B().Zadd().Key(viewsKey(row.SpreadsheetID)).ScoreMember().ScoreMember(float64(row.Views), row.URL).Build()
+	if err := q.client.Do(ctx, zCmd).Error(); err != nil {
+		return fmt.Errorf("zadd: %w", err)
+	}
+	return nil
+}
+
+// CreateOrUpdateBatch – массовая вставка/обновление одним пайплайном (DoMulti).
+func (q *Queue) CreateOrUpdateBatch(ctx context.Context, rows []*models.ResultRowUrl) error {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	// Каждая команда собирается отдельным вызовом q.client.B() и складывается
+	// в срез — valkey-go отправляет такой срез одним пайплайном через DoMulti.
+	cmds := make([]valkey.Completed, 0, len(rows)*2)
+	for _, row := range rows {
+		data, err := json.Marshal(row)
+		if err != nil {
+			return fmt.Errorf("marshal row %s: %w", row.URL, err)
+		}
+		cmds = append(cmds,
+			q.client.B().Hset().Key(dataKey(row.SpreadsheetID)).FieldValue().FieldValue(row.URL, string(data)).Build(),
+			q.client.B().Zadd().Key(viewsKey(row.SpreadsheetID)).ScoreMember().ScoreMember(float64(row.Views), row.URL).Build(),
+		)
+	}
+
+	for _, resp := range q.client.DoMulti(ctx, cmds...) {
+		if err := resp.Error(); err != nil {
+			return fmt.Errorf("pipeline exec: %w", err)
+		}
+	}
+	return nil
+}
+
+// GetAll – возвращает все записи для конкретного пользователя
+func (q *Queue) GetAll(ctx context.Context, spreadsheetID string) ([]*models.ResultRowUrl, error) {
+	// HGetAll возвращает map[поле]значение
+	cmd := q.client.B().Hgetall().Key(dataKey(spreadsheetID)).Build()
+	resp := q.client.Do(ctx, cmd)
+	if resp.Error() != nil {
+		// Если ключа нет, это может быть ошибка, но обычно HGetAll пустого ключа возвращает nil
+		if valkey.IsValkeyNil(resp.Error()) {
+			return []*models.ResultRowUrl{}, nil
+		}
+		return nil, fmt.Errorf("hgetall: %w", resp.Error())
+	}
+
+	// Преобразуем ответ в map
+	hashMap, err := resp.AsStrMap()
+	if err != nil {
+		return nil, fmt.Errorf("asstrmap: %w", err)
+	}
+
+	result := make([]*models.ResultRowUrl, 0, len(hashMap))
+	for url, jsonStr := range hashMap {
+		var row models.ResultRowUrl
+		if err := json.Unmarshal([]byte(jsonStr), &row); err != nil {
+			// Пропускаем битые записи, но можно вернуть ошибку
+			continue
+		}
+		// Убедимся, что URL в структуре соответствует ключу (на случай рассинхрона)
+		row.URL = url
+		result = append(result, &row)
+	}
+	return result, nil
+}
+
+// GetMostViewed – возвращает записи с Views > minViews, отсортированные по убыванию
+func (q *Queue) GetMostViewed(ctx context.Context, spreadsheetID string, minViews int64) ([]*models.ResultRowUrl, error) {
+	// ZRevRangeByScore: возвращает элементы с score от min+1 до +inf в порядке убывания
+	// Порядок аргументов у ZREVRANGEBYSCORE: key max min, поэтому и в билдере
+	// сначала идёт Max(), затем Min() — иначе метод Min просто недоступен на
+	// этом этапе цепочки.
+	cmd := q.client.B().Zrevrangebyscore().Key(viewsKey(spreadsheetID)).
+		Max("+inf").Min(strconv.FormatInt(minViews+1, 10)).
+		Build()
+	resp := q.client.Do(ctx, cmd)
+	if err := resp.Error(); err != nil {
+		if valkey.IsValkeyNil(err) {
+			return []*models.ResultRowUrl{}, nil
+		}
+		return nil, fmt.Errorf("zrevrangebyscore: %w", err)
+	}
+
+	// Получаем список URL (строки)
+	urls, err := resp.AsStrSlice()
+	if err != nil {
+		return nil, fmt.Errorf("asstrslice: %w", err)
+	}
+	if len(urls) == 0 {
+		return []*models.ResultRowUrl{}, nil
+	}
+
+	// Для каждого URL делаем HGet из hash одним пайплайном через DoMulti.
+	cmds := make([]valkey.Completed, 0, len(urls))
+	for _, url := range urls {
+		cmds = append(cmds, q.client.B().Hget().Key(dataKey(spreadsheetID)).Field(url).Build())
+	}
+	responses := q.client.DoMulti(ctx, cmds...)
+
+	result := make([]*models.ResultRowUrl, 0, len(urls))
+	for i, res := range responses {
+		if res.Error() != nil {
+			// Если запись не найдена, пропускаем
+			continue
+		}
+		jsonStr, err := res.ToString()
+		if err != nil {
+			continue
+		}
+		var row models.ResultRowUrl
+		if err := json.Unmarshal([]byte(jsonStr), &row); err != nil {
+			continue
+		}
+		row.URL = urls[i] // сохраняем URL из sorted set
+		result = append(result, &row)
+	}
+	return result, nil
+}
+
+// DeleteByURL – удаление конкретной ссылки пользователя
+func (q *Queue) DeleteByURL(ctx context.Context, spreadsheetID, url string) error {
+	cmds := []valkey.Completed{
+		q.client.B().Hdel().Key(dataKey(spreadsheetID)).Field(url).Build(),
+		q.client.B().Zrem().Key(viewsKey(spreadsheetID)).Member(url).Build(),
+	}
+
+	for _, resp := range q.client.DoMulti(ctx, cmds...) {
+		if err := resp.Error(); err != nil {
+			return fmt.Errorf("delete by url: %w", err)
+		}
+	}
+	return nil
 }
