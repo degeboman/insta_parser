@@ -609,7 +609,7 @@ func (u *Usecase) GetUniqueUrls(spreadsheetID string) error {
 	if err = u.dataInserter.InsertDataWithClear(
 		spreadsheetID,
 		"Уникальные ссылки 2",
-		"B3",
+		"B2",
 		models.ResultRowsUniqueToInterface(urls),
 	); err != nil {
 		u.logger.Error("ParsingUrls URLs returned an error",
