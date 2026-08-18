@@ -17,6 +17,7 @@ type GetUniqueUrlsResponse struct {
 
 type UniqueUrlsProvider interface {
 	GetUniqueUrls(spreadsheetID string) error
+	GetMostViewed(spreadsheetID string) error
 }
 
 type GetUniqueHandler struct {
@@ -73,6 +74,57 @@ func (h *GetUniqueHandler) GetUniqueUrls(w http.ResponseWriter, r *http.Request)
 	resp := GetUniqueUrlsResponse{
 		Success: true,
 		Message: "GetUniqueUrlsResponse received successfully",
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
+}
+
+func (h *GetUniqueHandler) GetMostViewed(w http.ResponseWriter, r *http.Request) {
+	// Разрешаем только GET метод
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Парсим JSON из тела запроса
+	var req GetUniqueUrlsRequest
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&req); err != nil {
+		resp := ParsingUrlsResponse{
+			Success: false,
+			Message: "Invalid JSON format",
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	if err := h.uniqueUrlsProvider.GetMostViewed(req.SpreadsheetID); err != nil {
+		resp := ParsingUrlsResponse{
+			Success: false,
+			Message: "err with urls",
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	// Проверяем, что tablename передан
+	if req.SpreadsheetID == "" {
+		resp := ParsingUrlsResponse{
+			Success: false,
+			Message: "spreadsheet_id is required",
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	// Возвращаем успешный ответ
+	resp := GetUniqueUrlsResponse{
+		Success: true,
+		Message: "GetMostViewed received successfully",
 	}
 
 	w.WriteHeader(http.StatusOK)

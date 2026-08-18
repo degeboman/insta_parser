@@ -110,6 +110,7 @@ func main() {
 	mux.HandleFunc(constants.ParsingUrls, parsingUrlsHandler.ParsingUrls)
 	mux.HandleFunc(constants.ParsingUrlsV2, parsingUrlsHandlerV2.ParsingUrls)
 	mux.HandleFunc(constants.GetUniqueUrls, getUniqueHandlers.GetUniqueUrls)
+	mux.HandleFunc(constants.GetMostViewed, getUniqueHandlers.GetMostViewed)
 	mux.HandleFunc(constants.ParsingAccount, parsingAccountHandler.ParsingAccount)
 	mux.HandleFunc(constants.ClipMoneyParsingAccount, clipMoneyParsingAccountHandler.ClipMoneyParsingAccount)
 	mux.HandleFunc(constants.ClipMoneyParsingUrl, clipMoneyParsingUrlHandler.ClipMoneyParsingUrl)
