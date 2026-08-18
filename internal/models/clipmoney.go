@@ -10,20 +10,21 @@ import (
 )
 
 type ClipMoneyResultRow struct {
-	AccountUrl     string `json:"account_url"`
-	URL            string `json:"url"`
-	Description    string `json:"description"`
-	Views          int64  `json:"views"`
-	Likes          int64  `json:"likes"`
-	Comments       int64  `json:"comments"`
-	Shares         int64  `json:"shares"`
-	ER             string `json:"er"`
-	Virality       string `json:"virality"`
-	ParsingDate    string `json:"parsing_date"`
-	PublishDate    string `json:"publish_date"`
-	ErID           string `json:"er_id"`
-	INN            string `json:"inn"`
-	AdvertiserName string `json:"advertiser_name"`
+	AccountUrl     string  `json:"account_url"`
+	URL            string  `json:"url"`
+	Description    string  `json:"description"`
+	Views          int64   `json:"views"`
+	Likes          int64   `json:"likes"`
+	Comments       int64   `json:"comments"`
+	Shares         int64   `json:"shares"`
+	ER             string  `json:"er"`
+	Virality       string  `json:"virality"`
+	ParsingDate    string  `json:"parsing_date"`
+	PublishDate    string  `json:"publish_date"`
+	ErID           string  `json:"er_id"`
+	INN            string  `json:"inn"`
+	AdvertiserName string  `json:"advertiser_name"`
+	Duration       float64 `json:"duration"`
 }
 
 // todo remove
@@ -113,6 +114,7 @@ func ClipMoneyResultRowFromVkClipInfo(data []*VKClipInfo, accountUrl string) []*
 			ErID:           data[i].ErID,
 			INN:            data[i].INN,
 			AdvertiserName: data[i].AdvertiserName,
+			Duration:       data[i].Duration,
 		}
 	}
 

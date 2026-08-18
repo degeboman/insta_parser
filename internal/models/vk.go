@@ -62,6 +62,7 @@ type VKClipInfo struct {
 	PostID         int
 	INN            string
 	AdvertiserName string
+	Duration       float64
 	Date           time.Time
 }
 
@@ -142,6 +143,7 @@ func ProcessVkGroupClipResponse(apiResponse RapidVkScraperClip, url string) *VKC
 		Virality:    utils.GetVirality(int64(shares), int64(views)),
 		ParsingDate: utils.ParsingDate(),
 		PublishDate: publishDate,
+		Duration:    float64(apiResponse.Duration),
 	}
 }
 
@@ -161,6 +163,7 @@ func ProcessVKClipInfoToResultRow(url string, result *VKClipInfo) *ResultRowUrl 
 		ErID:           result.ErID,
 		INN:            result.INN,
 		AdvertiserName: result.AdvertiserName,
+		Duration:       result.Duration,
 	}
 }
 

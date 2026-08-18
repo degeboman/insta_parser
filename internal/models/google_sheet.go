@@ -25,6 +25,7 @@ type ResultRowUrl struct {
 	ErID           string // айди рекламы, только для вк
 	INN            string // инн, только для вк
 	AdvertiserName string // имя рекламодателя, только для вк
+	Duration       float64
 	RowIndex       int
 }
 
