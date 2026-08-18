@@ -254,6 +254,7 @@ func (r *Repository) ClipInfo(ownerID, clipID int) (*models.VKClipInfo, error) {
 		ErID:           advertiser.ErID,
 		INN:            adsInfo.INN,
 		AdvertiserName: adsInfo.Name,
+		Duration:       float64(item.Duration),
 	}
 
 	return clipInfo, nil
