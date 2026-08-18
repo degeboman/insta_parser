@@ -32,6 +32,7 @@ type (
 
 	UrlsProvider interface {
 		GetAll(ctx context.Context, spreadsheetID string) ([]*models.ResultRowUrl, error)
+		GetMostViewed(ctx context.Context, spreadsheetID string, minViews int64) ([]*models.ResultRowUrl, error)
 	}
 )
 
@@ -68,6 +69,29 @@ func (u *Usecase) GetUniqueUrls(spreadsheetID string) error {
 		u.l.Error("ParsingUrls URLs returned an error",
 			slog.String("spreadsheet_id", spreadsheetID),
 			slog.String("sheet_name", "Уникальные ссылки"),
+			slog.String("err", err.Error()),
+		)
+		return err
+	}
+
+	return nil
+}
+
+func (u *Usecase) GetMostViewed(spreadsheetID string) error {
+	urls, err := u.urlsProvider.GetMostViewed(context.Background(), spreadsheetID, 1000)
+	if err != nil {
+		return err
+	}
+
+	if err = u.dataInserter.InsertDataWithClear(
+		spreadsheetID,
+		"Уникальные ссылки",
+		"A:I",
+		models.ResultRowsUniqueToInterface(urls),
+	); err != nil {
+		u.l.Error("ParsingUrls URLs returned an error",
+			slog.String("spreadsheet_id", spreadsheetID),
+			slog.String("sheet_name", ""),
 			slog.String("err", err.Error()),
 		)
 		return err
